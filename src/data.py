@@ -14,7 +14,7 @@ class RoadSegmentationDataset(Dataset):
         Args:
             root_dir (String): Directory with all the data.
             indices (int list): list of the indices of images to consider
-            train (bool): If it is a training dataset or a testing one.
+            train (bool): If it is a training dataset or a testing one (ie no label).
             transform (list of transforms): List of transformations to be applied on a sample.
                 Last transformation must be an instance of `transforms.Normalize`
         """
@@ -40,7 +40,7 @@ class RoadSegmentationDataset(Dataset):
             idx = idx.tolist()
 
         # get corresponding images
-        images = self.images[idx]
+        raw_images = self.images[idx]
 
         if self.train:
             labels = self.labels[idx]  # only in train mode
@@ -50,21 +50,23 @@ class RoadSegmentationDataset(Dataset):
         if self.train:
             seed = random.randint(0,2**32)
             random.seed(seed)
-            images = self.data_transform(images)
+            images = self.data_transform(raw_images)
             random.seed(seed)
             labels = self.label_transform(labels)
 
             # to ensure label in {0, 1}
             labels = (labels > 0.5).float()
 
-            # one hot encode labels
-            #one_hot = torch.FloatTensor(2, labels.size(1), labels.size(2)).zero_()
-            #labels = one_hot.scatter_(0, labels, 1)
+        else:
+            images = self.data_transform(raw_images)
+
+        # raw images are the images used as input, but without the normalization: we use label_transform
+        raw_images = self.label_transform(raw_images)
 
         # define corresponding sample
         if self.train:
-            sample = {'images': images, 'labels': labels}
+            sample = {'images': images, 'raw_images': raw_images, 'labels': labels}
         else:
-            sample = {'images': images}
+            sample = {'raw_images': raw_images, 'images': images}
 
         return sample

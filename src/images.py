@@ -25,13 +25,22 @@ def img_float_to_uint8(img):
     """Transform an array of float images into uint8 images
     
     Args:
-        img (float np.array):
-            pixel values between 0 and 1
+        img (float np.array): pixel values between 0 and 1
         
     Returns:
         uint8 np.array
     """
     return (img * PIXEL_DEPTH).round().astype(np.uint8)
+
+
+def img_binarize(img, threshold=0.5):
+    """ Transform a float image into a binary image (0 or 1)
+    
+    Args:
+        img (float np.array): pixels values between 0 and 1
+        threshold (float): threshold to separate 0s and 1s
+    """
+    return (img > threshold).astype(np.float)
 
 
 def load(directory, indices=None):
@@ -76,7 +85,7 @@ def load_train_data(directory, indices=None):
     return train_images, train_groundtruth
 
 
-def overlays(imgs, masks, alpha=0.95):
+def overlays(imgs, masks, alpha=0.95, binarize=False):
     """Add the masks on top of the images with red transparency
 
     Args:
@@ -87,12 +96,17 @@ def overlays(imgs, masks, alpha=0.95):
             shape: [num_images, height, width, 1]
         alpha (float):
             between 0 and 1, alpha channel value for the mask
+        binarize(bool):
+            if the mask should be consider transformed in {0, 1} (instead of [0, 1])
     
     Returns:
         np.array, shape: [num_images, height, width, num_channel]
     """
     num_images, im_height, im_width, num_channel = imgs.shape
-    assert num_channel == 3, 'Predict image should be colored'
+    assert num_channel == 3, 'PImages should be RGB images'
+
+    if binarize:
+        masks = img_binarize(masks)
 
     imgs = img_float_to_uint8(imgs)
     masks = img_float_to_uint8(masks.squeeze())
