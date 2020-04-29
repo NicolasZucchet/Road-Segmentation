@@ -6,11 +6,9 @@ module_path = os.path.abspath(os.path.join('./src'))
 if module_path not in sys.path:
     sys.path.append(module_path)
 
-
-# TODO add rotation in transforms (+ miroring to avoid null pixels)
 # TODO add GPU support
 
-from images import load_train_data, overlays, save_all
+from images import load_train_data, overlays, save_all, MirroredRandomRotation
 from data import RoadSegmentationDataset
 from model import UNet
 import numpy as np
@@ -19,6 +17,7 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
+# Experiment variables
 UNET_INPUT_SIZE = 256
 BATCH_SIZE = 2
 LR = 0.001
@@ -35,7 +34,8 @@ rgb_std = (0.2023, 0.1994, 0.2010)
 transform_train = [
     transforms.RandomHorizontalFlip(),
     transforms.RandomVerticalFlip(),
-    transforms.RandomResizedCrop(UNET_INPUT_SIZE, scale=(0.2,1)),  
+    MirroredRandomRotation(15),
+    transforms.RandomResizedCrop(UNET_INPUT_SIZE, scale=(0.3,1)),
         # take a patch of size scale*input_size, and resize it to UNET_INPUT_SIZE
     transforms.ToTensor(),
     transforms.Normalize(rgb_mean, rgb_std),
@@ -46,7 +46,6 @@ transform_test = [
     transforms.ToTensor(),
     transforms.Normalize(rgb_mean, rgb_std),
 ]
-
 
 model = UNet(IN_CHANNELS, N_CLASSES)
 if MODEL_SAVE is not None:
@@ -84,7 +83,7 @@ for epoch in range(EPOCHS):
         else:
             model.eval()   # Set model to evaluate mode
 
-        # to keep trace of prediction results    
+        # to keep trace of prediction results
         running_corrects = 0
         running_total = 0
 
@@ -156,7 +155,7 @@ def report(model, dataset):
     preds, imgs = np.array(preds), np.array(imgs)
     if dataset.train:
         gts = np.array(gts)
-    
+
     results = overlays(imgs, preds, alpha = 0.4, binarize=True)
     if SAVE:
         save_all(results, output_directory+"/images")

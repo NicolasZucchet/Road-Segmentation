@@ -17,7 +17,7 @@ IMAGES
     This modules gather a handful of utility functions to manipulate images and masks.
     Most of the functions are defined for batches of images (4D tensors).
 
-Slightly modified version of https://github.com/aschneuw/road-segmentation-unet/src/images.py
+Custom version of https://github.com/aschneuw/road-segmentation-unet/src/images.py
 """
 
 
@@ -149,156 +149,53 @@ def save_all(images, directory, format_="images_{:03d}.png", greyscale=False):
         mpimg.imsave(os.path.join(directory, format_.format(n + 1)), images[n], cmap=cmap)
 
 
-
-# TODO review....
-
-
-def mirror_border(images, n):
-    """mirrors border n border pixels on each side and corner:
-        4D [num_images, image_height, image_width, num_channel]
-        or 3D [num_images, image_height, image_width]
-    returns:
-        4D input: [num_patches, patch_size, patch_size, num_channel]
-        3D input: [num_patches, patch_size, patch_size]
+def crop_image(image, crop_size):
     """
-    has_channels = (len(images.shape) == 4)
-    if has_channels:
-        return np.pad(images, ((0, 0), (n, n), (n, n), (0, 0)), "symmetric")
-    else:
-        return np.pad(images, ((0, 0), (n, n), (n, n)), "symmetric")
-
-
-def overlap_pred_true(pred, true):
-    num_images, im_height, im_width = pred.shape
-    true_mask = img_float_to_uint8(true)
-    pred_mask = img_float_to_uint8(pred)
-
-    overlapped_mask = np.zeros((num_images, im_height, im_width, 3), dtype=np.uint8)
-    overlapped_mask[:, :, :, 0] = pred_mask
-    overlapped_mask[:, :, :, 1] = true_mask
-    overlapped_mask[:, :, :, 2] = 0
-
-    return overlapped_mask
-
-
-def overlapp_error(pred, true):
-    num_images, im_height, im_width = pred.shape
-    true_mask = img_float_to_uint8(true).astype("bool", copy=False)
-    pred_mask = img_float_to_uint8(pred).astype("bool", copy=False)
-    error = np.logical_xor(true_mask, pred_mask)
-    np.logical_not(error, out=error)
-    error = img_float_to_uint8(error * 1)
-
-    error_mask = np.zeros((num_images, im_height, im_width, 3), dtype=np.uint8)
-    error_mask[:, :, :, 0] = error
-    error_mask[:, :, :, 1] = error
-    error_mask[:, :, :, 2] = error
-
-    return error_mask
-
-
-def rotate_imgs(imgs, angle):
-    """safeguard to avoid useless rotation by 0"""
-    if angle == 0:
-        return imgs
-    return rotate(imgs, angle=angle, axes=(1, 2), order=0)
-
-
-def expand_and_rotate(imgs, angles, offset=0):
-    """rotate some images by an angle, mirror image for missing part and expanding to output_size
-        4D [num_images, image_height, image_width, num_channel]
-        or 3D [num_images, image_height, image_width]
-    angles: list of angle to rotate
-    output_size: new size of image
-    returns:
-        4D input: [num_images * num_angles, output_size, output_size, num_channel]
-        3D input: [num_images * num_angles, output_size, output_size]
+    Crop centered image
+    Args:
+        imgs: 3D np.array (n_channels, height, width)
+        crop_size (int): width and height of the input, must be even
     """
-
-    has_channels = (len(imgs.shape) == 4)
-    if not has_channels:
-        imgs = np.expand_dims(imgs, -1)
-
-    batch_size, height, width, num_channel = imgs.shape
-    assert height == width
-
-    output_size = height + 2 * offset
-    padding = int(np.ceil(height * (np.sqrt(2) - 1) / 2)) + int(np.ceil(offset / np.sqrt(2)))
-
-    print("Applying rotations: {} degrees... ".format(", ".join([str(a) for a in angles])))
-    imgs = mirror_border(imgs, padding)
-    rotated_imgs = np.zeros((batch_size * len(angles), output_size, output_size, num_channel))
-    for i, angle in enumerate(angles):
-        rotated_imgs[i * batch_size:(i + 1) * batch_size] = crop_imgs(rotate_imgs(imgs, angle), output_size)
-    print("Done")
-
-    if not has_channels:
-        rotated_imgs = np.squeeze(rotated_imgs, -1)
-
-    return rotated_imgs
-
-
-def crop_imgs(imgs, crop_size):
-    """
-    imgs:
-        3D or 4D images batch
-    crop_size:
-        width and height of the input
-    """
-    batch_size, height, width = imgs.shape[:3]
+    _, height, width = image.shape
     assert height == width and height >= crop_size
     assert crop_size % 2 == 0
     half_crop = int(crop_size / 2)
     center = int(height / 2)
-
-    has_channels = (len(imgs.shape) == 4)
-    if has_channels:
-        croped = imgs[:, center - half_crop:center + half_crop, center - half_crop:center + half_crop, :]
-    else:
-        croped = imgs[:, center - half_crop:center + half_crop, center - half_crop:center + half_crop]
-
-    return croped
+    return image[:, center-half_crop:center+half_crop, center-half_crop:center+half_crop]
 
 
-def image_augmentation_ensemble(imgs):
-    """create ensemble of images to be predicted
-
-    imgs: 4D images batch [num_images, height, width, channels]
-    returns:  4D images batch [6 * num_images, height, width, channels]
+class MirroredRandomRotation():
     """
-    num_imgs = imgs.shape[0]
-    augmented_imgs = np.zeros((num_imgs * 6,) + imgs.shape[1:])
-
-    # originals
-    augmented_imgs[:num_imgs] = imgs
-
-    # horizontal and vertical flip
-    augmented_imgs[num_imgs:2 * num_imgs] = np.flip(imgs, axis=2)
-    augmented_imgs[2 * num_imgs:3 * num_imgs] = np.flip(imgs, axis=1)
-
-    # rotated images
-    for i, k in enumerate([1, 2, 3]):
-        augmented_imgs[(3 + i) * num_imgs:(4 + i) * num_imgs] = np.rot90(imgs, k=k, axes=(1, 2))
-
-    return augmented_imgs
-
-
-def invert_image_augmentation_ensemble(masks):
-    """assemble masks of prediction images created by `image_augmentation_ensemble`
-
-    masks: 3D masks batch [6 * num_images, height, width]
-    returns: 3D masks batch [num_images, height, width]
+    Random rotation with mirrored edges to fill in the blanks.
     """
-    assert masks.shape[0] % 6 == 0
-    num_imgs = int(masks.shape[0] / 6)
+    def __init__(self, delta_angle):
+        self.delta_angle = delta_angle
+        self.angles = np.arange(0, 90, delta_angle)
 
-    result = masks[:num_imgs]
+    def __call__(self, image):
+        # image: n_channels, height, width (PIL image)
 
-    result += np.flip(masks[num_imgs:2 * num_imgs], axis=2)
-    result += np.flip(masks[2 * num_imgs:3 * num_imgs], axis=1)
+        # from PIL to np.array
+        np_image = np.array(image)
+        dim = len(np_image.shape)
+        if dim == 2:
+            np_image = np.expand_dims(np_image, -1) 
+        np_image = np_image.transpose(2, 0, 1)
+    
+        _, height, width = np_image.shape
+        assert height == width
+        n = int(np.ceil(height * (np.sqrt(2) - 1) / 2))  # minimum padding s.t. no blank pixels after rotation
+        angle = self.angles[np.random.randint(len(self.angles))]  
+            # choose one of the angles at random
 
-    # rotated images
-    for i, k in enumerate([-1, -2, -3]):
-        result += np.rot90(masks[(3 + i) * num_imgs:(4 + i) * num_imgs], k=k, axes=(1, 2))
+        # transformations
+        mirrored_image = np.pad(np_image, ((0, 0), (n, n), (n, n)), "symmetric")  # mirrors n border pixel
+        rotated_image = rotate(mirrored_image, angle=angle, axes=(1, 2), order=0)  # rotate the images
+        final_image = crop_image(rotated_image, height)  # crop images according to input size
 
-    return result / 6
+        # back to PIL image
+        final_image = final_image.transpose(1, 2, 0)
+        if dim == 2:
+            final_image = final_image[:, :, 0]
+        return Image.fromarray(final_image)
+        
