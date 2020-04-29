@@ -1,0 +1,14 @@
+experiment_results/
+
+# Compiled
+*/__pycache__/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Editor
+.vscode/
