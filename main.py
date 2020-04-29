@@ -1,19 +1,15 @@
 #!/usr/bin/env python3
 
-# add source to the Python path
-import os, sys
-module_path = os.path.abspath(os.path.join('./src'))
-if module_path not in sys.path:
-    sys.path.append(module_path)
 
 # TODO add GPU support
 
-from images import load_train_data, overlays, save_all, MirroredRandomRotation
-from data import RoadSegmentationDataset
-from model import UNet
+from src.images import load_train_data, overlays, save_all, MirroredRandomRotation
+from src.data import RoadSegmentationDataset
+from src.model import UNet
 import numpy as np
 import time, json
 import torch
+import os
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
