@@ -1,4 +1,4 @@
-from images import load_train_data, load
+from .images import load_train_data, load
 import torch
 from torch.utils.data import Dataset
 import random
