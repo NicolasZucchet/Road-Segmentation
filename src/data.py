@@ -9,7 +9,7 @@ from torchvision import transforms
 class RoadSegmentationDataset(Dataset):
     """Road segmentation dataset."""
 
-    def __init__(self, root_dir, indices=None, train=True, transform=None):
+    def __init__(self, root_dir, indices=None, train=True, transform=None, device=None):
         """
         Args:
             root_dir (String): Directory with all the data.
@@ -17,6 +17,7 @@ class RoadSegmentationDataset(Dataset):
             train (bool): If it is a training dataset or a testing one (ie no label).
             transform (list of transforms): List of transformations to be applied on a sample.
                 Last transformation must be an instance of `transforms.Normalize`
+            device (torch.device): device to use
         """
         self.root_dir = root_dir
         self.images, self.labels = None, None
@@ -31,6 +32,7 @@ class RoadSegmentationDataset(Dataset):
             assert type(self.transform[-1]) == transforms.Normalize
             self.data_transform = transforms.Compose(self.transform)
             self.label_transform = transforms.Compose(self.transform[:-1])
+        self.device = device
 
     def __len__(self):
         return len(self.images)
@@ -65,8 +67,15 @@ class RoadSegmentationDataset(Dataset):
 
         # define corresponding sample
         if self.train:
-            sample = {'images': images, 'raw_images': raw_images, 'labels': labels}
+            sample = {
+                'images': images.to(device=self.device), 
+                'raw_images': raw_images.to(device=self.device), 
+                'labels': labels.to(device=self.device)
+            }
         else:
-            sample = {'raw_images': raw_images, 'images': images}
+            sample = {
+                'raw_images': raw_images.to(device=self.device), 
+                'images': images.to(device=self.device)
+            }
 
         return sample
