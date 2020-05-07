@@ -5,7 +5,6 @@ import random
 from torchvision import transforms
 
 
-
 class RoadSegmentationDataset(Dataset):
     """Road segmentation dataset."""
 

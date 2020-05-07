@@ -174,7 +174,6 @@ class MirroredRandomRotation():
 
     def __call__(self, image):
         # image: n_channels, height, width (PIL image)
-
         # from PIL to np.array
         np_image = np.array(image)
         dim = len(np_image.shape)
@@ -190,12 +189,13 @@ class MirroredRandomRotation():
 
         # transformations
         mirrored_image = np.pad(np_image, ((0, 0), (n, n), (n, n)), "symmetric")  # mirrors n border pixel
-        rotated_image = rotate(mirrored_image, angle=angle, axes=(1, 2), order=0)  # rotate the images
+        rotated_image = rotate(mirrored_image, angle=angle, axes=(1, 2), order=3)  # rotate the images
         final_image = crop_image(rotated_image, height)  # crop images according to input size
 
         # back to PIL image
         final_image = final_image.transpose(1, 2, 0)
         if dim == 2:
             final_image = final_image[:, :, 0]
+
         return Image.fromarray(final_image)
         
