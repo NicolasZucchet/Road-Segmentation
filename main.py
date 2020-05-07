@@ -9,16 +9,18 @@ import torch
 import os
 from torch.utils.data import DataLoader
 from torchvision import transforms
+from torchvision.utils import make_grid
+from src.metrics import Hublot
 
 
 # Experiment variables
 UNET_INPUT_SIZE = 256
-BATCH_SIZE = 5
+BATCH_SIZE = 10
 LR = 0.001
-EPOCHS = 100
+EPOCHS = 750
 IN_CHANNELS = 3
 N_CLASSES = 1
-NAME = "TEST"
+NAME = "BASIC_TRANSFORMS"
 SAVE = True
 MODEL_SAVE = None #"experiment_results/TEST_200429_165515/model.pt"
 
@@ -59,113 +61,54 @@ data = {
     "test": DataLoader(dataset_test, batch_size=BATCH_SIZE)
 }
 
-criterion = torch.nn.BCELoss()
+criterion = torch.nn.BCEWithLogitsLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=LR)
 
-since = time.time()
-best_acc = 0.0
-
 output_directory = "experiment_results/" + NAME + "_" + time.strftime("%y%m%d_%H%M%S", time.localtime())
-if SAVE:
-    if not os.path.exists("experiment_results"):
-        os.makedirs("experiment_results")
-    os.makedirs(output_directory)
-    print("\nExperiment results will be stored in ./"+output_directory)
+if not os.path.exists("experiment_results"):
+    os.makedirs("experiment_results")
+os.makedirs(output_directory)
+hublot = Hublot(output_directory)
+print("\nExperiment results will be stored in ./"+output_directory)
 
+since = time.time()
+best_f1 = 0.0
 
 for epoch in range(EPOCHS):
-    print('Epoch {}/{}'.format(epoch+1, EPOCHS))
-
     # Each epoch has a training and validation phase
     for phase in ['train', 'valid']:
         if phase == 'train':
             model.train()  # Set model to training mode
         else:
             model.eval()   # Set model to evaluate mode
-
-        # to keep trace of prediction results
-        running_corrects = 0
-        running_total = 0
+        hublot.set_phase(phase)
 
         # Iterate over data and labels (minibatches), by default, for one epoch.
         for i, e in enumerate(data[phase]):
-            print("\r\tBatch {}/{}".format(i+1, len(data[phase])), end="")
             optimizer.zero_grad()
 
-            t = time.time()
-
-            with torch.set_grad_enabled(phase == 'train'):
+            with torch.set_grad_enabled(phase == 'train'):  # grads computed only in the training phase
                 outputs = model(e['images'])  # forward pass
+                loss = criterion(outputs, e['labels'])
                 outputs = torch.sigmoid(outputs)  # apply sigmoid to restrain within [0, 1]
                 preds = (outputs > 0.5).float()
-                loss = criterion(outputs, e['labels'])
+                hublot.add_batch_results(preds, e['labels'], loss.item())
 
                 # backward + optimize only if in training phase
                 if phase == 'train':
                     loss.backward()
                     optimizer.step()
 
-            running_corrects += torch.sum(preds == e['labels'].data)
-            running_total += preds.size(0) * preds.size(1) * preds.size(2) * preds.size(3)
-
-        epoch_acc = running_corrects.double() / float(running_total)
-        print('\n\t({}) Accuracy: {:.4f}'.format(phase, epoch_acc))
-        if phase == 'valid' and epoch_acc > best_acc:
-            best_acc = epoch_acc
-            if SAVE:
-                # save model
-                torch.save(model.state_dict(), output_directory+"/model.pt")
+    # Saves the model if its the best encountered so far
+    epoch_val_f1 = hublot.get_metric('f1_score', 'valid')  # get validation F1 score
+    if epoch_val_f1 > best_f1:
+        best_f1 = epoch_val_f1
+        torch.save(model.state_dict(), output_directory+"/model.pt")
+        
+    hublot.save_epoch()
 
 time_elapsed = time.time() - since
 print('\nTrained in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
-print('Best val Acc: {:4f}'.format(best_acc))
 
-def intersection_over_union(preds, gts):
-    preds = (preds > 0.5).astype(np.bool)
-    gts = gts.astype(np.bool)
-    intersection = preds*gts
-    union = preds+gts
-    return np.sum(intersection)/float(np.sum(union))
-
-def accuracy(preds, gts):
-    preds = (preds > 0.5).astype(np.bool)
-    gts = gts.astype(np.bool)
-    n = gts.shape[0] * gts.shape[1] * gts.shape[2] * gts.shape[3]
-    return np.sum(preds*gts)/float(n)
-
-def report(model, dataset):
-    data = DataLoader(dataset, batch_size=BATCH_SIZE)
-    model.eval()  # set model in eval mode
-    imgs, preds = [], []
-    if dataset.train:
-        gts = []
-    print("Running...")
-    for i, e in enumerate(data):
-        print("\r\tBatch {}/{}".format(i+1, len(data)), end="")
-        outputs = model(e['images'])  # forward pass
-        outputs = torch.sigmoid(outputs)  # apply sigmoid to restrain within [0, 1]
-        # images/outputs have shape [batch_size, n_channels, height, width]
-        # transform them into list of [height, width, n_channels
-        preds += list(outputs.permute(0, 2, 3, 1).cpu().data.numpy())
-        imgs += list(e['raw_images'].permute(0, 2, 3, 1).cpu().data.numpy())  # use raw images, which are images before normalization
-        if dataset.train:
-            gts += list(e['labels'].permute(0, 2, 3, 1).cpu().data.numpy())  # use raw images, which are images before normalization
-
-    preds, imgs = np.array(preds), np.array(imgs)
-    if dataset.train:
-        gts = np.array(gts)
-
-    results = overlays(imgs, preds, alpha=0.4, binarize=True)
-    if SAVE:
-        save_all(results, output_directory+"/images")
-
-    if dataset.train:
-        metrics = {}
-        metrics ['IOU'] = intersection_over_union(preds, gts)
-        metrics['Accuracy'] = accuracy(preds, gts)
-        for key in metrics:
-            print(key, metrics[key])
-        if SAVE:
-            json.dump(metrics, open(output_directory+"/metrics.json", 'w'))
-
-report(model, dataset_valid)
+hublot.close()
+# report(model, dataset_valid)
