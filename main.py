@@ -3,7 +3,7 @@
 # Project imports
 from src.images import load_train_data, overlays, save_all, MirroredRandomRotation
 from src.data import RoadSegmentationDataset
-from src.model import UNet
+from src.model import UNet, segnet_bn_relu
 from src.metrics import Hublot
 # General imports
 import numpy as np
@@ -28,7 +28,7 @@ device = torch.device(dev)
 
 
 def load_model_data(args):
-    model = UNet(IN_CHANNELS, N_CLASSES)
+    model = segnet_bn_relu(IN_CHANNELS, N_CLASSES, pretrained=True) #UNet(IN_CHANNELS, N_CLASSES)
     if args.SAVE is not None:
         model.load_state_dict(torch.load(args.SAVE))
     model.to(device)
@@ -38,7 +38,7 @@ def load_model_data(args):
     transform_train = [
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
-        MirroredRandomRotation(45),
+        # MirroredRandomRotation(45),
         transforms.RandomResizedCrop(args.INPUT_SIZE, scale=(0.3,1)),
             # take a patch of size scale*input_size, and resize it to INPUT_SIZE
         transforms.ToTensor(),
@@ -68,9 +68,9 @@ def create_saving_tools(args):
     os.makedirs(output_directory)
     hublot = Hublot(output_directory)  # Class that saves the results for Tensorboard
     print("\nExperiment results will be stored in ./"+output_directory)
-    return hublot
+    return hublot, output_directory
 
-def train(model, data, hublot, args):
+def train(model, data, hublot, output_directory, args):
     criterion = torch.nn.BCEWithLogitsLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=args.LR)
     since = time.time()
@@ -125,6 +125,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     model, data = load_model_data(args)
-    hublot = create_saving_tools(args)
-    train(model, data, hublot, args)
+    hublot, output_directory = create_saving_tools(args)
+    train(model, data, hublot, output_directory, args)
     hublot.close()
