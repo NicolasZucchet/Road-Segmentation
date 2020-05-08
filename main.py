@@ -28,7 +28,7 @@ device = torch.device(dev)
 
 
 def load_model_data(args):
-    model = segnet_bn_relu(IN_CHANNELS, N_CLASSES, pretrained=True) #UNet(IN_CHANNELS, N_CLASSES)
+    model = UNet(IN_CHANNELS, N_CLASSES)#segnet_bn_relu(IN_CHANNELS, N_CLASSES, pretrained=True) #UNet(IN_CHANNELS, N_CLASSES)
     if args.SAVE is not None:
         model.load_state_dict(torch.load(args.SAVE))
     model.to(device)
@@ -38,7 +38,7 @@ def load_model_data(args):
     transform_train = [
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
-        # MirroredRandomRotation(45),
+        MirroredRandomRotation(45),
         transforms.RandomResizedCrop(args.INPUT_SIZE, scale=(0.3,1)),
             # take a patch of size scale*input_size, and resize it to INPUT_SIZE
         transforms.ToTensor(),
