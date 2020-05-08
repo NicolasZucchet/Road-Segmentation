@@ -4,10 +4,10 @@
 from src.images import load_train_data, overlays, save_all, MirroredRandomRotation
 from src.data import RoadSegmentationDataset
 from src.model import UNet
-from src.metrics import Hublot
+from src.metrics import Hublot, report
 # General imports
 import numpy as np
-import time, json
+import time
 import os
 import argparse
 # Torch imports
@@ -23,14 +23,14 @@ N_CLASSES = 1
 if torch.cuda.is_available():  
     dev = "cuda:0" 
 else:  
-    dev = "cpu"  
+    dev = "cpu"
 device = torch.device(dev)
 
 
 def load_model_data(args):
     model = UNet(IN_CHANNELS, N_CLASSES)
     if args.SAVE is not None:
-        model.load_state_dict(torch.load(args.SAVE))
+        model.load_state_dict(torch.load(args.SAVE, map_location=device))
     model.to(device)
 
     rgb_mean = (0.4914, 0.4822, 0.4465)
@@ -53,22 +53,30 @@ def load_model_data(args):
     dataset_train = RoadSegmentationDataset('./data/training', indices=slice(70), train=True, transform=transform_train, device=device)
     dataset_valid = RoadSegmentationDataset('./data/training', indices=slice(70, 100), train=True, transform=transform_test, device=device)
     dataset_test = RoadSegmentationDataset('./data/test', train=False, transform=transform_test, device=device)
+    datasets = {
+        "train": dataset_train,
+        "valid": dataset_valid,
+        "test": dataset_test
+    }
+
     data = {
         "train": DataLoader(dataset_train, batch_size=args.BATCH_SIZE),
         "valid": DataLoader(dataset_valid, batch_size=args.BATCH_SIZE),
         "test": DataLoader(dataset_test, batch_size=args.BATCH_SIZE)
     }
 
-    return model, data
+    return model, data, datasets
 
 def create_saving_tools(args):
     output_directory = "experiment_results/" + args.NAME + "_" + time.strftime("%y%m%d_%H%M%S", time.localtime())
     if not os.path.exists("experiment_results"):
         os.makedirs("experiment_results")
     os.makedirs(output_directory)
-    hublot = Hublot(output_directory)  # Class that saves the results for Tensorboard
+    hublot = None
+    if not args.NO_TRAIN:
+        hublot = Hublot(output_directory)  # Class that saves the results for Tensorboard
     print("\nExperiment results will be stored in ./"+output_directory)
-    return hublot
+    return hublot, output_directory
 
 def train(model, data, hublot, args):
     criterion = torch.nn.BCEWithLogitsLoss()
@@ -121,10 +129,13 @@ if __name__ == '__main__':
     parser.add_argument('--lr', dest='LR', type=float, default=0.001, help='Learning rate (default: 0.001)')
     parser.add_argument('--epochs', dest='EPOCHS', type=int, default=100, help='Number of training epochs (default: 100)')
     parser.add_argument('--name', dest='NAME', type=str, default='EXPERIMENT', help='Name of the experiemnt (default: EXPERIMENT)')
+    parser.add_argument('--no-train', dest="NO_TRAIN", action='store_true', help='To skip training phase')
 
     args = parser.parse_args()
 
-    model, data = load_model_data(args)
-    hublot = create_saving_tools(args)
-    train(model, data, hublot, args)
-    hublot.close()
+    model, data, datasets = load_model_data(args)
+    hublot, output_directory = create_saving_tools(args)
+    if not args.NO_TRAIN:
+        train(model, data, hublot, args)
+        hublot.close()
+    report(model, datasets['valid'], output_directory)

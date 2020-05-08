@@ -3,6 +3,8 @@ from torch.utils.data import DataLoader
 from src.images import save_all, overlays
 from torch.utils.tensorboard import SummaryWriter
 import sklearn.metrics
+import torch
+import json
 
 
 def intersection_over_union(predictions, labels):
@@ -70,14 +72,14 @@ class Hublot:
         if metric not in self.metrics:
             raise ValueError('metric not in ' + str(self.metrics.keys()))
         if phase not in ['train', 'valid']:
-            raise ValueErro('phase not in {train, valid}')
+            raise ValueError('phase not in {train, valid}')
         return np.mean(self.metrics[metric][phase])
 
     def close(self):
         self.writer.close()
         
 
-
+# TODO: include it in Hublot
 def report(model, dataset, output_directory):
     data = DataLoader(dataset)
     model.eval()  # set model in eval mode

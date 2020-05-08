@@ -2,6 +2,7 @@ experiment_results/
 
 # Compiled
 */__pycache__/
+*.pyc
 
 # Environments
 .env
@@ -14,4 +15,4 @@ ENV/
 .vscode/
 
 # Leonhard
-lsf
+lsf.*
