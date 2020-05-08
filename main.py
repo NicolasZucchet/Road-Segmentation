@@ -3,7 +3,7 @@
 # Project imports
 from src.images import load_train_data, overlays, save_all, MirroredRandomRotation
 from src.data import RoadSegmentationDataset
-from src.model import UNet, segnet_bn_relu
+from src.model import Model
 from src.metrics import Hublot
 # General imports
 import numpy as np
@@ -28,17 +28,14 @@ device = torch.device(dev)
 
 
 def load_model_data(args):
-    model = UNet(IN_CHANNELS, N_CLASSES)#segnet_bn_relu(IN_CHANNELS, N_CLASSES, pretrained=True) #UNet(IN_CHANNELS, N_CLASSES)
-    if args.SAVE is not None:
-        model.load_state_dict(torch.load(args.SAVE))
-    model.to(device)
+    model = Model(args.MODEL_NAME, IN_CHANNELS, N_CLASSES, device=device)
+    model.load_weights(path=args.SAVE)
 
     rgb_mean = (0.4914, 0.4822, 0.4465)
     rgb_std = (0.2023, 0.1994, 0.2010)
     transform_train = [
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
-        MirroredRandomRotation(45),
         transforms.RandomResizedCrop(args.INPUT_SIZE, scale=(0.3,1)),
             # take a patch of size scale*input_size, and resize it to INPUT_SIZE
         transforms.ToTensor(),
@@ -121,6 +118,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', dest='LR', type=float, default=0.001, help='Learning rate (default: 0.001)')
     parser.add_argument('--epochs', dest='EPOCHS', type=int, default=100, help='Number of training epochs (default: 100)')
     parser.add_argument('--name', dest='NAME', type=str, default='EXPERIMENT', help='Name of the experiemnt (default: EXPERIMENT)')
+    parser.add_argument('--model-name', dest='MODEL_NAME', type=str, default='SegNet', help='Name of the model (default: SegNet)')
 
     args = parser.parse_args()
 

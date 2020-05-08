@@ -7,13 +7,21 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.model_zoo as model_zoo
-import os
+import os, sys
 import urllib
 
 
+"""
+This file consist in:
+1. Auxiliary modules
+2. UNet
+3. Segnet
+4. Model interface
+"""
+
 
 """
-Auxiliary modules
+1. Auxiliary modules
 """
 
 class ConvBNReLU(nn.Module):
@@ -146,7 +154,7 @@ class OutConv(nn.Module):
 
 
 """
-UNet
+2. UNet
 """
 
 class UNet(nn.Module):
@@ -186,7 +194,7 @@ class UNet(nn.Module):
 
 
 """
-SegNet
+3. SegNet
 """
 
 class SegNet(nn.Module):
@@ -197,7 +205,7 @@ class SegNet(nn.Module):
             torch.nn.init.kaiming_normal(m.weight.data)
     
     def __init__(self, in_channels, out_channels):
-        super(SegNet_BN_ReLU, self).__init__()
+        super(SegNet, self).__init__()
 
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -294,3 +302,33 @@ def segnet_bn_relu(in_channels, out_channels, pretrained=False, **kwargs):
         model.load_pretrained_weights()
     return model
 
+
+
+"""
+4. Model interface
+"""
+
+class Model(nn.Module):
+    """
+    Interface for choosing a specific model and share some methods
+    """
+
+    models = ['UNet', 'SegNet']
+
+    def __init__(self, model_name, in_channels, out_channels, device=torch.device('cpu')):
+        super().__init__()
+        if model_name not in self.models:
+            raise ValueError('Model name should be in ' + str(models))
+        self.model = getattr(sys.modules[__name__], model_name)(in_channels, out_channels)
+        print(self.model.forward)
+        self.device = device
+        print(device)
+        self.model.to(self.device)
+
+    def forward(self, x):
+        return self.model(x)
+
+    def load_weights(self, path=None):
+        if path is not None:
+            print(path)
+            self.model.load_state_dict(torch.load(path, map_location=self.device))
