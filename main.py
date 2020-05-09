@@ -134,6 +134,6 @@ if __name__ == '__main__':
     model, data, datasets = load_model_data(args)
     hublot, output_directory = create_saving_tools(args)
     if not args.NO_TRAIN:
-        train(model, data, hublot, args)
+        train(model, data, hublot, output_directory, args)
         hublot.close()
     report(model, datasets['valid'], output_directory)
