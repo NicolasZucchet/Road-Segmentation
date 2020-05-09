@@ -244,64 +244,6 @@ class SegNet(nn.Module):
 
         return x
 
-    def load_pretrained_weights(self):
-
-        vgg16_weights = model_zoo.load_url("https://download.pytorch.org/models/vgg16_bn-6c64b313.pth")
-
-        count_vgg = 0
-        count_this = 0
-
-        vggkeys = list(vgg16_weights.keys())
-        thiskeys  = list(self.state_dict().keys())
-
-        corresp_map = []
-
-        while(True):
-            vggkey = vggkeys[count_vgg]
-            thiskey = thiskeys[count_this]
-
-            if "classifier" in vggkey:
-                break
-            
-            while vggkey.split(".")[-1] not in thiskey:
-                count_this += 1
-                thiskey = thiskeys[count_this]
-
-
-            corresp_map.append([vggkey, thiskey])
-            count_vgg+=1
-            count_this += 1
-
-        mapped_weights = self.state_dict()
-        for k_vgg, k_segnet in corresp_map:
-            if (self.in_channels != 3) and "features" in k_vgg and "conv1_1." not in k_segnet:
-                mapped_weights[k_segnet] = vgg16_weights[k_vgg]
-            elif (self.in_channels == 3) and "features" in k_vgg:
-                mapped_weights[k_segnet] = vgg16_weights[k_vgg]
-
-        try:
-            self.load_state_dict(mapped_weights)
-            print("Loaded VGG-16 weights in Segnet !")
-        except:
-            print("Error VGG-16 weights in Segnet !")
-            raise
-    
-    def load_from_filename(self, model_path):
-        """Load weights from filename."""
-        th = torch.load(model_path)  # load the weigths
-        self.load_state_dict(th)
-
-
-def segnet_bn_relu(in_channels, out_channels, pretrained=False, **kwargs):
-    """Constructs a ResNet-34 model.
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-    """
-    model = SegNet(in_channels, out_channels)
-    if pretrained:
-        model.load_pretrained_weights()
-    return model
-
 
 
 """
@@ -320,9 +262,7 @@ class Model(nn.Module):
         if model_name not in self.models:
             raise ValueError('Model name should be in ' + str(models))
         self.model = getattr(sys.modules[__name__], model_name)(in_channels, out_channels)
-        print(self.model.forward)
         self.device = device
-        print(device)
         self.model.to(self.device)
 
     def forward(self, x):
@@ -330,5 +270,35 @@ class Model(nn.Module):
 
     def load_weights(self, path=None):
         if path is not None:
-            print(path)
             self.model.load_state_dict(torch.load(path, map_location=self.device))
+        else:
+            self.load_vgg_weights()
+
+    def load_vgg_weights(self):
+        vgg_weights = model_zoo.load_url("https://download.pytorch.org/models/vgg16_bn-6c64b313.pth")
+
+        vgg_keys = list(vgg_weights.keys())
+        model_keys  = list(self.state_dict().keys())
+
+        # while corresponding size, match model weights to vgg weights
+        mapped_weights = self.state_dict()
+        i_model, i_vgg = 0, 0
+        while i_model < len(model_keys) and i_vgg < len(vgg_keys):
+            model_key, vgg_key = model_keys[i_model], vgg_keys[i_vgg]
+            model_weight, vgg_weight = mapped_weights[model_key], vgg_weights[vgg_key]
+            if 'num_batches_tracked' in model_key:
+                i_model += 1
+                continue
+            if model_weight.size() == vgg_weight.size():
+                mapped_weights[model_key] = vgg_weight
+                i_vgg += 1
+                i_model += 1
+            else:
+                break
+
+        try:
+            self.load_state_dict(mapped_weights)
+            print("VGG-16 weights loaded")
+        except:
+            print("Error VGG-16 weights")
+            raise
