@@ -61,8 +61,18 @@ def load(directory, indices=None):
         paths = paths[indices]
     for i, file_path in enumerate(paths):
         print('\rImage {}/{}'.format(i, len(paths)), end='')
-        images.append(Image.open(file_path))
+        image = Image.open(file_path)
+        images.append(image)
+        image.close()  # important to avoid openning too many files
     print("\rLoaded {} images ".format(len(images), directory))
+    return images
+
+
+def load_directories(directories, indices=None):
+    """Version of load for several directories"""
+    images = []
+    for directory in directories:
+        images += load(directory, indices=indices)
     return images
 
 
@@ -76,11 +86,27 @@ def load_train_data(directory, indices=None):
         images: [num_images, img_height, img_width, num_channel]
         labels: [num_images, img_height, img_width]
     """
-    train_data_dir = os.path.abspath(os.path.join(directory, 'images/'))
-    train_labels_dir = os.path.abspath(os.path.join(directory, 'groundtruth/'))
+    train_images_dir = os.path.abspath(os.path.join(directory, 'images/'))
+    train_groundtruth_dir = os.path.abspath(os.path.join(directory, 'groundtruth/'))
 
-    train_images = load(train_data_dir, indices=indices)
-    train_groundtruth = load(train_labels_dir, indices=indices)
+    train_images = load(train_images_dir, indices=indices)
+    train_groundtruth = load(train_groundtruth_dir, indices=indices)
+
+    return train_images, train_groundtruth
+
+
+def load_train_data_directories(directories, indices=None):
+    """Version of load_train_data for several directories
+    """
+    train_images, train_groundtruth = [], []
+    for directory in directories:
+        print("Loading data from:", directory)
+        train_images_dir = os.path.abspath(os.path.join(directory, 'images/'))
+        print(train_images_dir)
+        train_groundtruth_dir = os.path.abspath(os.path.join(directory, 'groundtruth/'))
+
+        train_images += load(train_images_dir, indices=indices)
+        train_groundtruth += load(train_groundtruth_dir, indices=indices)
 
     return train_images, train_groundtruth
 

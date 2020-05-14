@@ -47,20 +47,25 @@ def load_model_data(args):
         transforms.Normalize(rgb_mean, rgb_std),
     ]
 
-    dataset_train = RoadSegmentationDataset('./data/training', indices=slice(70), train=True, transform=transform_train, device=device)
-    dataset_valid = RoadSegmentationDataset('./data/training', indices=slice(70, 100), train=True, transform=transform_test, device=device)
-    dataset_test = RoadSegmentationDataset('./data/test', train=False, transform=transform_test, device=device)
+    if args.DATASET == "CIL":
+        dataset_train = RoadSegmentationDataset('./data/CIL/training', indices=slice(70), train=True, transform=transform_train, device=device)
+        dataset_valid = RoadSegmentationDataset('./data/CIL/training', indices=slice(70, 100), train=True, transform=transform_test, device=device)
+        dataset_test = RoadSegmentationDataset('./data/CIL/test', train=False, transform=transform_test, device=device)
+    elif args.DATASET == "GoogleMaps":
+        dataset_train = RoadSegmentationDataset('./data/GoogleMaps', train=True, indices=slice(70), subtasks=True, 
+            transform=transform_train, device=device)
+        dataset_valid = RoadSegmentationDataset('./data/GoogleMaps', train=True, indices=slice(70, 100), subtasks=True, 
+            transform=transform_test, device=device)
+    else:
+        raise ValueError("Dataset should be CIL or GoogleMaps")
     datasets = {
         "train": dataset_train,
-        "valid": dataset_valid,
-        "test": dataset_test
+        "valid": dataset_valid
     }
+    if args.DATASET == "CIL":
+        datasets["test"] = dataset_test
 
-    data = {
-        "train": DataLoader(dataset_train, batch_size=args.BATCH_SIZE),
-        "valid": DataLoader(dataset_valid, batch_size=args.BATCH_SIZE),
-        "test": DataLoader(dataset_test, batch_size=args.BATCH_SIZE)
-    }
+    data = { key: DataLoader(datasets[key],  batch_size=args.BATCH_SIZE) for key in datasets.keys() }
 
     return model, data, datasets
 
@@ -128,10 +133,13 @@ if __name__ == '__main__':
     parser.add_argument('--name', dest='NAME', type=str, default='EXPERIMENT', help='Name of the experiemnt (default: EXPERIMENT)')
     parser.add_argument('--model-name', dest='MODEL_NAME', type=str, default='SegNet', help='Name of the model (default: SegNet)')
     parser.add_argument('--no-train', dest="NO_TRAIN", action='store_true', help='To skip training phase')
+    parser.add_argument('--dataset', dest="DATASET", default="CIL", help="Dataset to use, CIL or GoogleMaps")
 
     args = parser.parse_args()
 
     model, data, datasets = load_model_data(args)
+    import sys
+    sys.exit()
     hublot, output_directory = create_saving_tools(args)
     if not args.NO_TRAIN:
         train(model, data, hublot, output_directory, args)
