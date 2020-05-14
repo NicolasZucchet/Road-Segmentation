@@ -96,7 +96,7 @@ def train(model, data, hublot, output_directory, args):
             hublot.set_phase(phase)
 
             # Iterate over data and labels (minibatches), by default, for one epoch.
-            for i, e in enumerate(data[phase]):
+            for e in data[phase]:
                 optimizer.zero_grad()
 
                 with torch.set_grad_enabled(phase == 'train'):  # grads computed only in the training phase
@@ -138,8 +138,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     model, data, datasets = load_model_data(args)
-    import sys
-    sys.exit()
     hublot, output_directory = create_saving_tools(args)
     if not args.NO_TRAIN:
         train(model, data, hublot, output_directory, args)
