@@ -25,7 +25,7 @@ class RoadSegmentationDataset(Dataset):
         self.images, self.labels = None, None
         self.train = train
         self.subtasks = subtasks
-        if self.subtasks:
+    if self.subtasks:
             subdirectories = [
                 os.path.join(root_dir, x) for x in os.listdir(root_dir) 
                 if "." not in x
@@ -60,10 +60,6 @@ class RoadSegmentationDataset(Dataset):
 
         if self.train:
             labels = self.labels[idx]  # only in train mode
-            if torch.max(labels) > 1:  # to ensure label in [0, 1]
-                print(np.min(labels.data.numpy()), torch.max(labels.data.numpy()))
-                labels /= 255.
-                print(np.min(labels.data.numpy()), torch.max(labels.data.numpy()))
 
         # apply specific transformation for images and labels if in train mode
             # use trick presented in https://github.com/pytorch/vision/issues/9#issuecomment-383110707

@@ -52,9 +52,9 @@ def load_model_data(args):
         dataset_valid = RoadSegmentationDataset('./data/CIL/training', indices=slice(70, 100), train=True, transform=transform_test, device=device)
         dataset_test = RoadSegmentationDataset('./data/CIL/test', train=False, transform=transform_test, device=device)
     elif args.DATASET == "GoogleMaps":
-        dataset_train = RoadSegmentationDataset('./data/GoogleMaps', train=True, indices=slice(70), subtasks=True, 
+        dataset_train = RoadSegmentationDataset('./data/GoogleMaps', train=True, indices=slice(35), subtasks=True, 
             transform=transform_train, device=device)
-        dataset_valid = RoadSegmentationDataset('./data/GoogleMaps', train=True, indices=slice(70, 100), subtasks=True, 
+        dataset_valid = RoadSegmentationDataset('./data/GoogleMaps', train=True, indices=slice(35, 50), subtasks=True, 
             transform=transform_test, device=device)
     else:
         raise ValueError("Dataset should be CIL or GoogleMaps")
@@ -82,7 +82,7 @@ def create_saving_tools(args):
 
 def train(model, data, hublot, output_directory, args):
     criterion = torch.nn.BCEWithLogitsLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=args.LR)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.LR)
     since = time.time()
     best_f1 = 0.0
 
@@ -98,7 +98,6 @@ def train(model, data, hublot, output_directory, args):
             # Iterate over data and labels (minibatches), by default, for one epoch.
             for e in data[phase]:
                 optimizer.zero_grad()
-
                 with torch.set_grad_enabled(phase == 'train'):  # grads computed only in the training phase
                     outputs = model(e['images'])  # forward pass
                     loss = criterion(outputs, e['labels'])
