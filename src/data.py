@@ -4,6 +4,7 @@ import os
 from torch.utils.data import Dataset
 import random
 from torchvision import transforms
+import numpy as np
 
 
 class RoadSegmentationDataset(Dataset):
@@ -59,6 +60,10 @@ class RoadSegmentationDataset(Dataset):
 
         if self.train:
             labels = self.labels[idx]  # only in train mode
+            if torch.max(labels) > 1:  # to ensure label in [0, 1]
+                print(np.min(labels.data.numpy()), torch.max(labels.data.numpy()))
+                labels /= 255.
+                print(np.min(labels.data.numpy()), torch.max(labels.data.numpy()))
 
         # apply specific transformation for images and labels if in train mode
             # use trick presented in https://github.com/pytorch/vision/issues/9#issuecomment-383110707
@@ -67,7 +72,7 @@ class RoadSegmentationDataset(Dataset):
             random.seed(seed)
             images = self.data_transform(raw_images)
             random.seed(seed)
-            labels = self.label_transform(labels)
+            labels = self.label_transform(labels).float()
 
             # to ensure label in {0, 1}
             labels = (labels > 0.5).float()

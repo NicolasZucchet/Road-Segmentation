@@ -63,7 +63,6 @@ def load(directory, indices=None):
         print('\rImage {}/{}'.format(i, len(paths)), end='')
         image = Image.open(file_path)
         images.append(image)
-        image.close()  # important to avoid openning too many files
     print("\rLoaded {} images ".format(len(images), directory))
     return images
 
