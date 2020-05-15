@@ -25,7 +25,7 @@ class RoadSegmentationDataset(Dataset):
         self.images, self.labels = None, None
         self.train = train
         self.subtasks = subtasks
-    if self.subtasks:
+        if self.subtasks:
             subdirectories = [
                 os.path.join(root_dir, x) for x in os.listdir(root_dir) 
                 if "." not in x
