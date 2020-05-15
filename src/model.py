@@ -270,9 +270,22 @@ class Model(nn.Module):
 
     def load_weights(self, path=None):
         if path is not None:
-            self.model.load_state_dict(torch.load(path, map_location=self.device))
+            try:
+                self.model.load_state_dict(torch.load(path, map_location=self.device))
+            except:
+                # handle the case when the names are not excatly the same (model. before each key)
+                # it happens when the weights are saved on GPU and loaded on CPU
+                saved_state_dict = torch.load(path, map_location=self.device)
+                modified_state_dict = {}
+                for key in saved_state_dict.keys():
+                    if 'model.' in key:
+                        modified_state_dict[key[6:]] = saved_state_dict[key]
+                    else:
+                        modified_state_dict[key] = saved_state_dict[key]
+                self.model.load_state_dict(modified_state_dict)
         else:
             self.load_vgg_weights()
+            print("Loaded VGG weights")
 
     def load_vgg_weights(self):
         vgg_weights = model_zoo.load_url("https://download.pytorch.org/models/vgg16_bn-6c64b313.pth")
