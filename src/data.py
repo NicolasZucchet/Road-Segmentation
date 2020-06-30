@@ -93,3 +93,16 @@ class RoadSegmentationDataset(Dataset):
             }
 
         return sample
+
+
+class RoadSegmentationTask:
+    """
+    Class containing train and val dataloaders for a given task (i.e. one of the GoogleMaps dataset)
+    """
+
+    def __init__(self, root_dir, train_indices, val_indices, train_transform=None, val_transform=None, device=None):
+        self.root_dir = root_dir
+        self.train_data = RoadSegmentationDataset(
+            root_dir, indices=train_indices, transform=train_transform, device=device)
+        self.val_data = RoadSegmentationDataset(
+            root_dir, indices=val_indices, transform=val_transform, device=device)
