@@ -34,19 +34,32 @@ N_CLASSES = 1
 
 ROOT_DIR = './data/GoogleMaps'
 # Arbitrary choice
+# easy dataset
 TRAIN_TASKS = [
-    'Rome', 'London', 'Vancouver', 'Mexico_Countryside', 'NewDelhi', 
-    'Sweden_Countryside', 'CapeTown', 'Tokyo', 'Stockholm', 'Shanghai', 
-    'BuenosAires', 'Dubai', 'Riyadh', 'Switzerland_Countryside', 'Canada_Countryside', 
-    'Zurich', 'NewYork', 'Teheran', 'Marakkesh', 'Egypt_Countryside', 'France_Countryside', 
+    'Rome', 'London', 'Vancouver', 'CapeTown', 'Tokyo', 
+    'Stockholm', 'BuenosAires', 'Dubai', 'Canada_Countryside', 'Zurich', 
+    'NewYork', 'Marakkesh', 
 ]
 VAL_TASKS = [
-    'Seattle', 'Bankok', 'SouthAfrica_Countryside', 'RioDeJaneiro', 'Miami', 
-    'GB_Countryside', 'SanFrancisco', 'Paris', 'Cairo', 'Chicago'
+    'Seattle', 'Miami', 'GB_Countryside', 'SanFrancisco', 'Paris', 
+    'Chicago'
 ]
 TEST_TASKS = [
-    'Auckland', 'Sidney', 'MexicoCity', 'Italy_Countryside', 'Morocco_Countryside'
+    'Auckland', 'Sidney', 'MexicoCity'
 ]
+# hard dataset
+hard = False
+if hard:
+    TRAIN_TASKS += [
+        'Mexico_Countryside', 'NewDelhi', 'Sweden_Countryside', 'Shanghai', 'Riyadh', 
+        'Switzerland_Countryside', 'Teheran', 'Egypt_Countryside', 'France_Countryside', 
+    ]
+    VAL_TASKS += [
+        'Bankok', 'SouthAfrica_Countryside', 'RioDeJaneiro', 'Cairo',
+    ]
+    TEST_TASKS += [
+        'Italy_Countryside', 'Morocco_Countryside'
+    ]
 
 def load_model_data(args):
     model = Model(args.MODEL_NAME, IN_CHANNELS, N_CLASSES, device=device)
@@ -122,6 +135,8 @@ def evaluate(model, criterion, data, hublot, args):
 def train(model, indices, transformations, hublot, output_directory, args):
     criterion = torch.nn.BCEWithLogitsLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.INNER_LR)
+
+    best_mean_f1 = 0
         
     # Sample an epoch by shuffling all training tasks
     for iteration in range(args.META_ITERATIONS):
@@ -154,7 +169,7 @@ def train(model, indices, transformations, hublot, output_directory, args):
         del weights_before  # to avoid keeping the weights (potentially huge) in memory
             
         # Validation on all the validation tasks every 5 epochs
-        if iteration % 5 == 1:
+        if iteration % 5 == 0:
             hublot.set_phase('val')
             print('\tValidation')
             for task_name in VAL_TASKS:
@@ -166,6 +181,11 @@ def train(model, indices, transformations, hublot, output_directory, args):
                 val_optimizer = torch.optim.Adam(val_model.parameters(), lr=args.INNER_LR)
                 optimizer_step(val_model, criterion, val_optimizer, train_data, args)
                 evaluate(val_model, criterion, val_data, hublot, args)
+            mean_f1 = hublot.get_metric('f1_score', 'val')
+            # saves model if better f1 score on validation data
+            if mean_f1 > best_mean_f1:
+                best_mean_f1 = mean_f1
+                torch.save(model.state_dict(), output_directory+"/model.pt")
 
         hublot.save_epoch()
 
