@@ -10,7 +10,7 @@ import numpy as np
 class RoadSegmentationDataset(Dataset):
     """Road segmentation dataset."""
 
-    def __init__(self, root_dir, indices=None, train=True, transform=None, device=None, subtasks=False):
+    def __init__(self, root_dir, indices=None, train=True, transform=None, device=None, subtasks=False, verbose=True):
         """
         Args:
             root_dir (String): Directory with all the data.
@@ -19,28 +19,38 @@ class RoadSegmentationDataset(Dataset):
             transform (list of transforms): List of transformations to be applied on a sample.
                 Last transformation must be an instance of `transforms.Normalize`
             device (torch.device): device to use
-            subtasks (bool): weither the data in root_dir contains sub tasks
+        --- subtasks (bool): weither the data in root_dir contains sub tasks
+            verbose (bool): To display some details
         """
         self.root_dir = root_dir
         self.images, self.labels = None, None
         self.train = train
-        self.subtasks = subtasks
-        if self.subtasks:
+
+        if subtasks is True:
+            self.subtasks = True
             subdirectories = [
                 os.path.join(root_dir, x) for x in os.listdir(root_dir) 
                 if "." not in x
             ]
+        elif subtasks is not False:
+            self.subtasks = True
+            subdirectories = [
+                os.path.join(root_dir, x) for x in subtasks
+            ]
+        else:
+            self.subtasks = False
+
         if self.train:
             if not self.subtasks:
-                self.images, self.labels = load_train_data(self.root_dir, indices=indices)
+                self.images, self.labels = load_train_data(self.root_dir, indices=indices, verbose=verbose)
             else:
-                self.images, self.labels = load_train_data_directories(subdirectories, indices=indices)
+                self.images, self.labels = load_train_data_directories(subdirectories, indices=indices, verbose=verbose)
             assert len(self.images) == len(self.labels)
         else:
             if not self.subtasks:
-                self.images = load(self.root_dir, indices=indices)
+                self.images = load(self.root_dir, indices=indices, verbose=verbose)
             else:
-                self.images = load_directories(subdirectories, indices=indices)
+                self.images = load_directories(subdirectories, indices=indices, verbose=verbose)
         self.transform = transform
         if self.transform is not None:
             assert type(self.transform[-1]) == transforms.Normalize
@@ -100,9 +110,9 @@ class RoadSegmentationTask:
     Class containing train and val dataloaders for a given task (i.e. one of the GoogleMaps dataset)
     """
 
-    def __init__(self, root_dir, train_indices, val_indices, train_transform=None, val_transform=None, device=None):
+    def __init__(self, root_dir, train_indices, val_indices, train_transform=None, val_transform=None, device=None, verbose=True):
         self.root_dir = root_dir
         self.train_data = RoadSegmentationDataset(
-            root_dir, indices=train_indices, transform=train_transform, device=device)
+            root_dir, indices=train_indices, transform=train_transform, device=device, verbose=verbose)
         self.val_data = RoadSegmentationDataset(
-            root_dir, indices=val_indices, transform=val_transform, device=device)
+            root_dir, indices=val_indices, transform=val_transform, device=device, verbose=verbose)

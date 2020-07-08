@@ -7,9 +7,9 @@ import argparse
 
 # Project imports
 from src.images import load_train_data, overlays, save_all, MirroredRandomRotation
-from src.data import RoadSegmentationTask
+from src.data import RoadSegmentationTask, RoadSegmentationDataset
 from src.model import Model
-from src.metrics import Hublot, report
+from src.metrics import Hublot, report, intersection_over_union, f1_score, accuracy
 # General imports
 import numpy as np
 import time
@@ -39,13 +39,14 @@ TRAIN_TASKS = [
     'Sweden_Countryside', 'CapeTown', 'Tokyo', 'Stockholm', 'Shanghai', 
     'BuenosAires', 'Dubai', 'Riyadh', 'Switzerland_Countryside', 'Canada_Countryside', 
     'Zurich', 'NewYork', 'Teheran', 'Marakkesh', 'Egypt_Countryside', 'France_Countryside', 
-    'Auckland', 'Sidney', 'MexicoCity', 'Italy_Countryside', 'Morocco_Countryside'
 ]
 VAL_TASKS = [
     'Seattle', 'Bankok', 'SouthAfrica_Countryside', 'RioDeJaneiro', 'Miami', 
     'GB_Countryside', 'SanFrancisco', 'Paris', 'Cairo', 'Chicago'
 ]
-
+TEST_TASKS = [
+    'Auckland', 'Sidney', 'MexicoCity', 'Italy_Countryside', 'Morocco_Countryside'
+]
 
 def load_model_data(args):
     model = Model(args.MODEL_NAME, IN_CHANNELS, N_CLASSES, device=device)
@@ -66,22 +67,13 @@ def load_model_data(args):
         transforms.ToTensor(),
         transforms.Normalize(rgb_mean, rgb_std),
     ]
+    transformations = { 'train': transform_train, 'val': transform_test }
 
     train_indices = slice(args.N_TRAIN)
     val_indices = slice(args.N_TRAIN, args.N_TRAIN+args.N_VAL)
-    train_data = { task:
-        RoadSegmentationTask(os.path.join(ROOT_DIR, task), train_indices, val_indices,
-            device=device, train_transform=transform_train, val_transform=transform_test)
-        for task in TRAIN_TASKS
-    }
-    val_data = { task:
-        RoadSegmentationTask(os.path.join(ROOT_DIR,task), train_indices, val_indices,
-            device=device, train_transform=transform_train, val_transform=transform_test)
-        for task in VAL_TASKS
-    }
-    data = { 'train': train_data, 'val': val_data }
+    indices = { 'train': train_indices, 'val': val_indices }
 
-    return model, data
+    return model, indices, transformations
 
 
 def create_saving_tools(args):
@@ -102,50 +94,56 @@ def optimizer_step(model, criterion, optimizer, data, args):
     """
     model.train()
     for i in range(args.INNER_EPOCHS):
+        train_loss, train_acc, ctr = 0., 0., 0.
         for d in data:
             optimizer.zero_grad()
-            pred = model(d['images'])
-            loss = criterion(pred, d['labels'])
+            outputs = model(d['images'])
+            loss = criterion(outputs, d['labels'])
             loss.backward()
             optimizer.step()
+            train_acc += ((torch.sigmoid(outputs) > 0.5) == d['labels']).float().mean()*outputs.shape[0]
+            train_loss += loss.item()
+            ctr += outputs.shape[0]
+        train_loss /= ctr
+        train_acc /= ctr
+        print(f'Training epoch: {i} Training Loss: {train_loss}, Train Accuracy: {train_acc}')
 
 
-def evaluate(model, criterion, data, args):
-    loss, val_acc, ctr = 0., 0., 0.
+def evaluate(model, criterion, data, hublot, args):
     model.eval()
     with torch.no_grad():
         for d in data:
-            pred = model(d['images'])
-            loss += criterion(pred, d['labels']).item()
-            val_acc += ((torch.sigmoid(pred) > 0.5) == d['labels']).float().mean()
-            ## add f1 score 
-            ctr += d['labels'].shape[0] / args.BATCH_SIZE
-    loss /= ctr
-    val_acc /= ctr
-    return loss, val_acc
+            outputs = model(d['images'])
+            loss = criterion(outputs, d['labels']).item()
+            preds = (torch.sigmoid(outputs) > 0.5).float()
+            hublot.add_batch_results(preds, d['labels'], loss)
 
 
-def train(model, data, hublot, output_directory, args):
+def train(model, indices, transformations, hublot, output_directory, args):
     criterion = torch.nn.BCEWithLogitsLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.INNER_LR)
         
     # Sample an epoch by shuffling all training tasks
     for iteration in range(args.META_ITERATIONS):
+        print(f'Meta iteration {iteration}...')
         # Copy weights before meta update 
         weights_before = deepcopy(model.state_dict())
         
         # Sample one of the training task
         task_name = random.sample(TRAIN_TASKS, 1)[0]
-        print(f'Iteration {iteration}: sampled {task_name}')
-        task = data['train'][task_name]
+        print(f"\tTask: {task_name}")
+        # Open the needed files
+        task = RoadSegmentationTask(os.path.join(ROOT_DIR, task_name), indices['train'], indices['val'],
+            device=device, train_transform=transformations['train'], val_transform=transformations['val'], verbose=False)
         train_data =  DataLoader(task.train_data,  batch_size=args.BATCH_SIZE)
         val_data =  DataLoader(task.val_data,  batch_size=args.BATCH_SIZE)
 
         # Take inner_epochs gradient steps
-        #optimizer_step(model, criterion, optimizer, train_data, args)
+        optimizer_step(model, criterion, optimizer, train_data, args)
 
         # Evaluate on the training task
-        #evaluate(model, criterion, val_data, args)  # TODO add hublot
+        hublot.set_phase('train')
+        evaluate(model, criterion, val_data, hublot, args)
 
         # Interpolate between current weights and trained weights from this task
         weights_after = model.state_dict()
@@ -156,28 +154,20 @@ def train(model, data, hublot, output_directory, args):
         del weights_before  # to avoid keeping the weights (potentially huge) in memory
             
         # Validation on all the validation tasks every 5 epochs
-        if iteration % 5 == 0:
+        if iteration % 5 == 1:
+            hublot.set_phase('val')
+            print('\tValidation')
             for task_name in VAL_TASKS:
-                task = data['val'][task_name]
+                task = RoadSegmentationTask(os.path.join(ROOT_DIR, task_name), indices['train'], indices['val'],
+                    device=device, train_transform=transformations['train'], val_transform=transformations['val'], verbose=False)
                 train_data =  DataLoader(task.train_data,  batch_size=args.BATCH_SIZE)
                 val_data =  DataLoader(task.val_data,  batch_size=args.BATCH_SIZE)
                 val_model = deepcopy(model)
-                optimizer_step(val_model, criterion, optimizer, train_data, args)
-                evaluate(val_model, criterion, val_data, args)
-        
-    
-    
-    print("k shot learning on CIL Dataset")
-    k = 10 # set number of samples the model must learn test task from 
-    train_loader, val_loader = test_task
-    optimizer_step(model, loss, optimizer, train_loader, k, batch_size)
-    loss, accuracy = evaluate(val_model, loss, val_loader, batch_size)
-    print(f'K-Shot learning loss: {loss} accuracy: {accuracy}')
-    
-    return {'loss': { 'train': train_metalosses, 'test': val_metalosses},
-            'accuracy': { 'train': train_accuracies, 'test': val_accuracies}}
-    
+                val_optimizer = torch.optim.Adam(val_model.parameters(), lr=args.INNER_LR)
+                optimizer_step(val_model, criterion, val_optimizer, train_data, args)
+                evaluate(val_model, criterion, val_data, hublot, args)
 
+        hublot.save_epoch()
 
 
 if __name__ == '__main__':
@@ -197,7 +187,7 @@ if __name__ == '__main__':
     parser.add_argument('--meta-iterations', dest='META_ITERATIONS', type=int, default=1000, 
         help='Number of meta iterations (default: 1000)')
     parser.add_argument('--name', dest='NAME', type=str, default='EXPERIMENT', 
-        help='Name of the experiemnt (default: EXPERIMENT)')
+        help='Name of the experiment (default: EXPERIMENT)')
     parser.add_argument('--model-name', dest='MODEL_NAME', type=str, default='SegNet', 
         help='Name of the model (default: SegNet)')
     parser.add_argument('--no-train', dest="NO_TRAIN", action='store_true', 
@@ -209,9 +199,22 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    model, data = load_model_data(args)
+    model, indices, transformations = load_model_data(args)
     hublot, output_directory = create_saving_tools(args)
     if not args.NO_TRAIN:
-        train(model, data, hublot, output_directory, args)
+        train(model, indices, transformations, hublot, output_directory, args)
         hublot.close()
-    report(model, datasets['valid'], output_directory)
+    
+    # TODO: clean that
+    test_dataset_train = RoadSegmentationDataset(
+        ROOT_DIR, indices['train'], transform=transformations['train'], device=device,
+        subtasks=TEST_TASKS, verbose=False)
+    test_dataset_val = RoadSegmentationDataset(
+        ROOT_DIR, indices['val'], transform=transformations['val'], device=device,
+        subtasks=TEST_TASKS, verbose=False)
+    test_data_train = DataLoader(test_dataset_train,  batch_size=args.BATCH_SIZE)
+    criterion = torch.nn.BCEWithLogitsLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.INNER_LR)
+    print("Optim test")
+    optimizer_step(model, criterion, optimizer, test_data_train, args)
+    report(model, test_dataset_val, output_directory, args)

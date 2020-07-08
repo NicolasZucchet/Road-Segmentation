@@ -17,9 +17,12 @@ def intersection_over_union(predictions, labels):
 def accuracy(predictions, labels):
     predictions = (predictions > 0.5).astype(np.bool)
     labels = labels.astype(np.bool)
-    return np.sum(predictions*labels)/float(labels.shape[0])
+    return np.sum(predictions==labels)/labels.size
 
 def f1_score(predictions, labels):
+    predictions = predictions.reshape(-1)
+    labels = labels.reshape(-1).astype(np.int)
+    predictions = (predictions > 0.5).astype(np.int)
     return sklearn.metrics.f1_score(labels, predictions)
 
 
@@ -35,20 +38,18 @@ class Hublot:
             n_classes (int): number of classes
         """
         self.writer = SummaryWriter(output_directory)
-        self._reset()
         self.epoch = 0
         self.phase = None
+        self.phases = ['train', 'val']
+        self._reset()
 
     def _reset(self):
         metrics = ['intersection_over_union', 'accuracy', 'f1_score']
-        self.metrics = { metric:{'train': [], 'valid': []} for metric in metrics}
-        self.losses = { 'train': [], 'valid': [] }
+        self.metrics = { metric: { phase: [] for phase in self.phases } for metric in metrics}
+        self.losses = { phase: [] for phase in self.phases }
 
     def add_batch_results(self, predictions, labels, loss):
         predictions, labels = predictions.cpu().data.numpy(), labels.cpu().data.numpy()
-        # reshape to get [n_images, n_pixels] array
-        predictions = predictions.reshape(predictions.shape[0], -1)
-        labels = labels.reshape(predictions.shape[0], -1)
         for metric in self.metrics:
             for i in range(predictions.shape[0]):
                 self.metrics[metric][self.phase].append(
@@ -57,12 +58,13 @@ class Hublot:
         self.losses[self.phase].append(loss)
         
     def set_phase(self, phase):
+        assert phase in self.phases
         self.phase = phase
 
     def save_epoch(self):
         for metric in self.metrics:
             for phase in self.metrics[metric]:
-                print(metric, phase, np.mean(self.metrics[metric][phase]))
+                print(metric, phase, self.metrics[metric][self.phase])
                 self.writer.add_scalar("Mean " + metric + "/" + phase, np.mean(self.metrics[metric][phase]), self.epoch)
         for phase in self.losses:
             self.writer.add_scalar("Loss/" + phase, np.mean(self.losses[phase]), self.epoch)
@@ -81,8 +83,8 @@ class Hublot:
         
 
 # TODO: include it in Hublot
-def report(model, dataset, output_directory):
-    data = DataLoader(dataset)
+def report(model, dataset, output_directory, args):
+    data = DataLoader(dataset, batch_size=args.BATCH_SIZE)
     model.eval()  # set model in eval mode
     imgs, preds = [], []
     if dataset.train:
@@ -108,6 +110,7 @@ def report(model, dataset, output_directory):
         metrics = {}
         metrics ['IOU'] = intersection_over_union(preds, gts)
         metrics['Accuracy'] = accuracy(preds, gts)
+        metrics['F1'] = f1_score(preds, gts)
         for key in metrics:
             print(key, metrics[key])
         json.dump(metrics, open(output_directory+"/metrics.json", 'w'))
