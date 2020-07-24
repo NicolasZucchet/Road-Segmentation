@@ -1,6 +1,9 @@
 """
-U-Net model adapted from https://github.com/milesial/Pytorch-UNet
-SegNet model adapted from https://github.com/delta-onera/delta_tb
+This file is structured as:
+ - Auxiliary modules
+ - UNet class
+ - Model interface
+U-Net model adapted from https://github.com/milesial/Pytorch-UNet.
 """
 
 import torch
@@ -11,17 +14,9 @@ import os, sys
 import urllib
 
 
-"""
-This file consist in:
-1. Auxiliary modules
-2. UNet
-3. Segnet
-4. Model interface
-"""
-
 
 """
-1. Auxiliary modules
+Auxiliary modules
 """
 
 class ConvBNReLU(nn.Module):
@@ -154,7 +149,7 @@ class OutConv(nn.Module):
 
 
 """
-2. UNet
+UNet
 """
 
 class UNet(nn.Module):
@@ -194,60 +189,7 @@ class UNet(nn.Module):
 
 
 """
-3. SegNet
-"""
-
-class SegNet(nn.Module):
-    # Unet network
-    @staticmethod
-    def weight_init(m):
-        if isinstance(m, nn.Linear):
-            torch.nn.init.kaiming_normal(m.weight.data)
-    
-    def __init__(self, in_channels, out_channels):
-        super(SegNet, self).__init__()
-
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-
-        self.down1 = Down(in_channels, 64, n_convs=2, return_indices=True)
-        self.down2 = Down(64, 128, n_convs=2, return_indices=True)
-        self.down3 = Down(128, 256, n_convs=3, return_indices=True)
-        self.down4 = Down(256, 512, n_convs=3, return_indices=True)
-        self.down5 = Down(512, 512, n_convs=3, return_indices=True)
-
-        self.up1 = Up(512, 512, n_convs=3, mode='max_unpool')
-        self.up2 = Up(512, 256, n_convs=3, mode='max_unpool')
-        self.up3 = Up(256, 128, n_convs=3, mode='max_unpool')
-        self.up4 = Up(128, 64, n_convs=2, mode='max_unpool')
-        self.unpool5 = nn.MaxUnpool2d(2)
-        self.conv5 = nn.Sequential(
-            ConvBNReLU(64, 64),
-            nn.Conv2d(64, out_channels, 3, padding=1)
-        )
-        
-        self.apply(self.weight_init)
-        
-    def forward(self, x):
-        size1, mask1, x = self.down1(x)
-        size2, mask2, x = self.down2(x)
-        size3, mask3, x = self.down3(x)
-        size4, mask4, x = self.down4(x)
-        size5, mask5, x = self.down5(x)
-
-        x = self.up1(x, mask=mask5, output_size = size5)
-        x = self.up2(x, mask=mask4, output_size = size4)
-        x = self.up3(x, mask=mask3, output_size = size3)
-        x = self.up4(x, mask=mask2, output_size = size2)
-        x = self.unpool5(x, mask1, output_size = size1)
-        x = self.conv5(x)
-
-        return x
-
-
-
-"""
-4. Model interface
+Model interface
 """
 
 class Model(nn.Module):
@@ -255,7 +197,7 @@ class Model(nn.Module):
     Interface for choosing a specific model and share some methods
     """
 
-    models = ['UNet', 'SegNet']
+    models = ['UNet']
 
     def __init__(self, model_name, in_channels, out_channels, device=torch.device('cpu')):
         super().__init__()

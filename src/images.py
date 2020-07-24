@@ -1,3 +1,11 @@
+"""
+This modules gather a handful of utility functions to manipulate images and masks.
+Most of the functions are defined for batches of images (4D tensors).
+
+Custom version of https://github.com/aschneuw/road-segmentation-unet/src/images.py
+"""
+
+
 import glob
 import os
 import sys
@@ -10,15 +18,6 @@ from scipy.ndimage.interpolation import rotate
 
 FOREGROUND_THRESHOLD = .25
 PIXEL_DEPTH = 255
-
-
-"""
-IMAGES
-    This modules gather a handful of utility functions to manipulate images and masks.
-    Most of the functions are defined for batches of images (4D tensors).
-
-Custom version of https://github.com/aschneuw/road-segmentation-unet/src/images.py
-"""
 
 
 def img_float_to_uint8(img):
@@ -40,7 +39,7 @@ def img_binarize(img, threshold=0.5):
         img (float np.array): pixels values between 0 and 1
         threshold (float): threshold to separate 0s and 1s
     """
-    return (img > threshold).astype(np.float)
+    return (img >= threshold).astype(np.float)
 
 
 def load(directory, indices=None, verbose=True):
@@ -60,7 +59,7 @@ def load(directory, indices=None, verbose=True):
     images = []
     paths = sorted(glob.glob(os.path.join(directory, '*.png')))
     if indices is not None:
-        paths = paths[indices]
+        paths = [paths[i] for i in indices]
     for i, file_path in enumerate(paths):
         if verbose:
             print('\rImage {}/{}'.format(i, len(paths)), end='')
@@ -197,10 +196,13 @@ def crop_image(image, crop_size):
 class MirroredRandomRotation():
     """
     Random rotation with mirrored edges to fill in the blanks.
+
+    Args:
+        max_angle: in degree, angles will be sampled in [0, max_angle]
     """
-    def __init__(self, delta_angle):
-        self.delta_angle = delta_angle
-        self.angles = np.arange(0, 90, delta_angle)
+    def __init__(self, max_angle):
+        self.max_angle = max_angle
+        self.angles = np.arange(0, max_angle, 1)
 
     def __call__(self, image):
         # image: n_channels, height, width (PIL image)
