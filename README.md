@@ -59,4 +59,6 @@ We train our network in the following way:
 
 The model is then ready to be applied to the testing set: **TODO**
 
-Some metrics are saved during the training and can be viewed within tensorboard. To launch it, in `experiment_results` folder, run `tensorboard --logdir . --port 16006`. If Tensorboard is running on your computer, you can access it through `http://localhost:16006` in a web navigator. If it is running on Leonhard, you first need to execute `ssh -L 6006:127.0.0.1:16006 USERNAME@login.leonhard.ethz.ch` on your local machine, and then go to ``http://localhost:6006`.
+Some metrics are saved during the training and can be viewed within tensorboard. To launch it, in `experiment_results` folder, run `tensorboard --logdir . --port 16006`. <br/>
+If Tensorboard is running on your computer, you can access it through `http://localhost:16006` in a web navigator. <br/>
+If it is running on Leonhard, you first need to execute `ssh -L 6006:127.0.0.1:16006 USERNAME@login.leonhard.ethz.ch` on your local machine, and then go to `http://localhost:6006`.
