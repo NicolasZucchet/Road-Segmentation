@@ -9,10 +9,10 @@ This repo contains tools for classical supervised learning and meta Learning for
 
 ### On Leonhard
 
-`module load python_gpu/3.6.4 hdf5 eth_proxy cudnn/7.2`
-`pip install virtualenvwrapper`
-`source $HOME/.local/bin/virtualenvwrapper.sh`
-`mkvirtualenv env`
+`module load python_gpu/3.6.4 hdf5 eth_proxy cudnn/7.2`<br/>
+`pip install virtualenvwrapper`<br/>
+`source $HOME/.local/bin/virtualenvwrapper.sh`<br/>
+`mkvirtualenv env`<br/>
 `pip install -r requirements.txt`
 
 
