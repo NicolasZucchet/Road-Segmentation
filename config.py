@@ -13,7 +13,7 @@ import torch
 # Parameters for UNet
 IN_CHANNELS = 3
 N_CLASSES = 1
-INPUT_SIZE = 400  # XXX
+INPUT_SIZE = 256  # XXX
 
 
 # Use GPU if possible
@@ -25,25 +25,16 @@ device = torch.device(dev)
 
 
 # Parameters related to data augmentation
-MIN_SCALE = 0.5  # XXX
+MIN_SCALE = 0.3  # XXX
 MAX_SCALE = 1  # XXX
-ROTATION_MAX_ANGLE = 10  # XXX
-JITTER_BRIGHTNESS = 0.2  # XXX
-JITTER_CONTRAST = 0.3  # XXX
-JITTER_SATURATION = 0.1  # XXX
-JITTER_HUE = 0.05  # XXX
+ROTATION_MAX_ANGLE = 45  # XXX
 # Transformation for training samples
 rgb_mean = (0.4914, 0.4822, 0.4465)
 rgb_std = (0.2023, 0.1994, 0.2010)
 TRANSFORM_TRAIN = [
     transforms.RandomHorizontalFlip(),
     transforms.RandomVerticalFlip(),
-    MirroredRandomRotation(ROTATION_MAX_ANGLE),
-    transforms.ColorJitter(
-        brightness=JITTER_BRIGHTNESS, 
-        contrast=JITTER_CONTRAST,
-        saturation=JITTER_SATURATION, 
-        hue=JITTER_HUE),
+    #MirroredRandomRotation(ROTATION_MAX_ANGLE),
     transforms.RandomResizedCrop(INPUT_SIZE, scale=(MIN_SCALE, MAX_SCALE)),
         # take a patch of size scale*input_size, and resize it to INPUT_SIZE
     transforms.ToTensor(),
