@@ -47,9 +47,9 @@ def load_model_data(args):
         # !!! For GoogleMaps dataset, n_val is not used
         # validation samples are not taken from the same tasks than training samples
         dataset_train = RoadSegmentationDataset('./data/GoogleMaps', train=True, indices=indices_train, subtasks=config.TRAIN_TASKS, 
-            transform=transform_train, device=config.device)
+            transform=transform_train, device=config.device, verbose=False)
         dataset_valid = RoadSegmentationDataset('./data/GoogleMaps', train=True, indices=indices_train, subtasks=config.VAL_TASKS, 
-            transform=transform_test, device=config.device)
+            transform=transform_test, device=config.device, verbose=False)
     else:
         raise ValueError("Dataset should be CIL or GoogleMaps")
 
@@ -97,6 +97,7 @@ def train(model, data, hublot, output_directory, args):
 
         # Saves the model if it's the best encountered so far
         epoch_val_f1 = hublot.get_metric('f1_score', 'val')  # get validation F1 score
+        print('F1', epoch_val_f1)
         if epoch_val_f1 > best_f1:
             best_f1 = epoch_val_f1
             torch.save(model.state_dict(), output_directory+"/model.pt")

@@ -51,6 +51,7 @@ class RoadSegmentationDataset(Dataset):
                 self.images = load(self.root_dir, indices=indices, verbose=verbose)
             else:
                 self.images = load_directories(subdirectories, indices=indices, verbose=verbose)
+
         self.transform = transform
         if self.transform is not None:
             assert type(self.transform[-1]) == transforms.Normalize

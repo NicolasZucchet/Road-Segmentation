@@ -85,7 +85,6 @@ class Hublot:
         """
         for metric in self.metrics:
             for phase in self.metrics[metric]:
-                print(metric, phase, self.metrics[metric][self.phase])
                 self.writer.add_scalar("Mean " + metric + "/" + phase, np.mean(self.metrics[metric][phase]), self.epoch)
         for phase in self.losses:
             self.writer.add_scalar("Loss/" + phase, np.mean(self.losses[phase]), self.epoch)

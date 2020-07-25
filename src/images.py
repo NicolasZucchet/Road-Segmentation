@@ -210,11 +210,9 @@ class MirroredRandomRotation():
         # from PIL to np.array
         np_image = np.array(image)
         dim = len(np_image.shape)
-        print(np_image.shape)
         if dim == 2:
             np_image = np.expand_dims(np_image, -1) 
         np_image = np_image.transpose(2, 0, 1)
-        print(np_image.shape)
     
         _, height, width = np_image.shape
         assert height == width
@@ -223,16 +221,9 @@ class MirroredRandomRotation():
             # choose one of the angles at random
 
         # transformations
-        import matplotlib.pyplot as plt 
         mirrored_image = np.pad(np_image, ((0, 0), (n, n), (n, n)), "symmetric")  # mirrors n border pixel
-        plt.imshow(mirrored_image[0])
-        plt.savefig('v1.png')
         rotated_image = rotate(mirrored_image, angle=angle, axes=(1, 2), order=1)  # rotate the images
-        plt.imshow(rotated_image[0])
-        plt.savefig('v2.png')
         final_image = crop_image(rotated_image, height)  # crop images according to input size
-        plt.imshow(final_image[0])
-        plt.savefig('v3.png')
 
         # back to PIL image
         final_image = final_image.transpose(1, 2, 0)
