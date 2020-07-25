@@ -13,6 +13,7 @@ import sys
 import matplotlib as mpl
 import matplotlib.image as mpimg
 import numpy as np
+import random 
 from PIL import Image
 from scipy.ndimage.interpolation import rotate
 
@@ -209,20 +210,29 @@ class MirroredRandomRotation():
         # from PIL to np.array
         np_image = np.array(image)
         dim = len(np_image.shape)
+        print(np_image.shape)
         if dim == 2:
             np_image = np.expand_dims(np_image, -1) 
         np_image = np_image.transpose(2, 0, 1)
+        print(np_image.shape)
     
         _, height, width = np_image.shape
         assert height == width
         n = int(np.ceil(height * (np.sqrt(2) - 1) / 2))  # minimum padding s.t. no blank pixels after rotation
-        angle = self.angles[np.random.randint(len(self.angles))]  
+        angle = self.angles[random.randint(0, len(self.angles)-1)]  
             # choose one of the angles at random
 
         # transformations
+        import matplotlib.pyplot as plt 
         mirrored_image = np.pad(np_image, ((0, 0), (n, n), (n, n)), "symmetric")  # mirrors n border pixel
-        rotated_image = rotate(mirrored_image, angle=angle, axes=(1, 2), order=3)  # rotate the images
+        plt.imshow(mirrored_image[0])
+        plt.savefig('v1.png')
+        rotated_image = rotate(mirrored_image, angle=angle, axes=(1, 2), order=1)  # rotate the images
+        plt.imshow(rotated_image[0])
+        plt.savefig('v2.png')
         final_image = crop_image(rotated_image, height)  # crop images according to input size
+        plt.imshow(final_image[0])
+        plt.savefig('v3.png')
 
         # back to PIL image
         final_image = final_image.transpose(1, 2, 0)

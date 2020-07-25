@@ -55,13 +55,8 @@ class RoadSegmentationDataset(Dataset):
         if self.transform is not None:
             assert type(self.transform[-1]) == transforms.Normalize
             self.data_transform = transforms.Compose(self.transform)
-            self.label_transform = []
-            for t in self.transform:
-                if type(t).__name__ not in ['Normalize', 'ColorJitter']:
-                    self.label_transform.append(t)
-            self.label_transform = transforms.Compose(self.label_transform)
             # remove normalization
-            self.raw_image_transform = transforms.Compose(self.transform[:-1])
+            self.label_transform = transforms.Compose(self.transform[:-1])
         self.device = device
 
     def __len__(self):
@@ -83,7 +78,7 @@ class RoadSegmentationDataset(Dataset):
         random.seed(seed)
         images = self.data_transform(raw_images)
         random.seed(seed)
-        raw_images = self.raw_image_transform(raw_images)
+        raw_images = self.label_transform(raw_images)
         
         if self.train:
             random.seed(seed)
