@@ -25,7 +25,7 @@ device = torch.device(dev)
 
 
 # Parameters related to data augmentation
-MIN_SCALE = 0.3  # XXX
+MIN_SCALE = 0.25  # XXX
 MAX_SCALE = 1  # XXX
 ROTATION_MAX_ANGLE = 45  # XXX
 # Transformation for training samples
@@ -54,16 +54,17 @@ RANDOM_SEED = 42
 # Parameters related to the GoogleMaps dataset
 # Name of the tasks that should be used as training and validation tasks
 TRAIN_TASKS = [
-    'Rome', 'London', 'Vancouver', 'CapeTown', 'Tokyo', 
-    'Stockholm', 'BuenosAires', 'Dubai', 'Canada_Countryside', 'Zurich', 
-    'NewYork', 'Marakkesh', 'Auckland', 'Sidney', 'MexicoCity',
-    'Mexico_Countryside', 'NewDelhi', 'Sweden_Countryside', 'Shanghai', 'Riyadh', 
-    'Switzerland_Countryside', 'Teheran', 'Egypt_Countryside', 'France_Countryside', 'Italy_Countryside', 
-    'Morocco_Countryside'
+    'New York', 'Los Angeles', 'Rio de Janeiro', 'Teheran',
+    'Marakkesh', 'Moscow', 'Sidney', 'Barcelona', 'Vancouver', 'Lagos',
+    'Dubai', 'Riyadh', 'Buenos Aires', 'Rome', 'Cape Town', 'Paris',
+    'GB Countryside', 'Stockholm', 'Istanbul', 'France Countryside',
+    'Canada Countryside', 'Seattle', 'Zurich', 'Toronto',
+    'Switzerland Countryside', 'Tokyo', 'Italy Countryside'
 ]
 VAL_TASKS = [
-    'Seattle', 'Miami', 'GB_Countryside', 'SanFrancisco', 'Paris', 
-    'Chicago', 'Bankok', 'SouthAfrica_Countryside', 'RioDeJaneiro', 'Cairo'
+    'Miami', 'San Francisco', 'London', 'Auckland', 'Bankok',
+    'New Delhi', 'Sweden Countryside', 'Cairo', 'Kuala Lumpur',
+    'Singapore', 'Houston', 'Chicago', 'Mexico City'
 ]
 
 
