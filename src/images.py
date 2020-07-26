@@ -43,76 +43,61 @@ def img_binarize(img, threshold=0.5):
     return (img >= threshold).astype(np.float)
 
 
-def load(directory, indices=None, verbose=True):
-    """Extract the images in `directory` into a tensor [num_images, height, width(, channels)]
+def load(directory, indices=None):
+    """Extract image paths in `directory`
     
     Args:
         directory (String): path to the directery
         indices (slice): files to keep
-        verbose (bool): whether to display more information
         
     Returns:
-        list of 2D or 3D images
+        paths: list of file paths
     """
-
-    if verbose:
-        print('Loading images from {}...'.format(directory.split("/")[-1]))
-    images = []
     paths = sorted(glob.glob(os.path.join(directory, '*.png')))
     if indices is not None:
         paths = [paths[i] for i in indices]
-    for i, file_path in enumerate(paths):
-        if verbose:
-            print('\rImage {}/{}'.format(i, len(paths)), end='')
-        image = Image.open(file_path)
-        images.append(image)
-    if verbose:
-        print("\rLoaded {} images ".format(len(images), directory))
-    return images
+    return paths
 
 
-def load_directories(directories, indices=None, verbose=True):
+def load_directories(directories, indices=None):
     """Version of load for several directories"""
-    images = []
+    paths = []
     for directory in directories:
-        images += load(directory, indices=indices, verbose=verbose)
-    return images
+        paths += load(directory, indices=indices)
+    return paths
 
 
-def load_train_data(directory, indices=None, verbose=True):
-    """Load images and labels from `directory`
+def load_train_data(directory, indices=None):
+    """Load image and label paths from `directory`
 
     Args:
         directory (String): path to the directory, must contain subfolders `images` and `groundtruth`
         indices (slice): files to keep
-        verbose (bool): whether to display more information
     returns:
-        images: [num_images, img_height, img_width, num_channel]
-        labels: [num_images, img_height, img_width]
+        image_paths: list of paths to images
+        label_paths: list of paths to labels
     """
     train_images_dir = os.path.abspath(os.path.join(directory, 'images/'))
-    train_groundtruth_dir = os.path.abspath(os.path.join(directory, 'groundtruth/'))
+    train_labels_dir = os.path.abspath(os.path.join(directory, 'groundtruth/'))
 
-    train_images = load(train_images_dir, indices=indices, verbose=verbose)
-    train_groundtruth = load(train_groundtruth_dir, indices=indices, verbose=verbose)
+    image_paths = load(train_images_dir, indices=indices)
+    label_paths = load(train_labels_dir, indices=indices)
 
-    return train_images, train_groundtruth
+    return image_paths, label_paths
 
 
-def load_train_data_directories(directories, indices=None, verbose=True):
+def load_train_data_directories(directories, indices=None):
     """Version of load_train_data for several directories
     """
-    train_images, train_groundtruth = [], []
+    image_paths, label_paths = [], []
     for directory in directories:
-        if verbose:
-            print("Loading data from:", directory)
         train_images_dir = os.path.abspath(os.path.join(directory, 'images/'))
-        train_groundtruth_dir = os.path.abspath(os.path.join(directory, 'groundtruth/'))
+        train_labels_dir = os.path.abspath(os.path.join(directory, 'groundtruth/'))
 
-        train_images += load(train_images_dir, indices=indices, verbose=verbose)
-        train_groundtruth += load(train_groundtruth_dir, indices=indices, verbose=verbose)
+        image_paths += load(train_images_dir, indices=indices)
+        label_paths += load(train_labels_dir, indices=indices)
 
-    return train_images, train_groundtruth
+    return image_paths, label_paths
 
 
 def overlays(imgs, masks, alpha=0.95, binarize=False):

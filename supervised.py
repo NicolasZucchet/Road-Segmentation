@@ -47,9 +47,9 @@ def load_model_data(args):
         # !!! For GoogleMaps dataset, n_val is not used
         # validation samples are not taken from the same tasks than training samples
         dataset_train = RoadSegmentationDataset('./data/GoogleMaps', train=True, indices=indices_train, subtasks=config.TRAIN_TASKS, 
-            transform=transform_train, device=config.device, verbose=False)
+            transform=transform_train, device=config.device)
         dataset_valid = RoadSegmentationDataset('./data/GoogleMaps', train=True, indices=indices_train, subtasks=config.VAL_TASKS, 
-            transform=transform_test, device=config.device, verbose=False)
+            transform=transform_test, device=config.device)
     else:
         raise ValueError("Dataset should be CIL or GoogleMaps")
 
@@ -72,6 +72,7 @@ def train(model, data, hublot, output_directory, args):
     best_f1 = 0.0
 
     for epoch in range(args.EPOCHS):
+        print('Epoch', epoch)
         # Each epoch has a training and validation phase
         for phase in ['train', 'val']:
             if phase == 'train':
@@ -81,7 +82,8 @@ def train(model, data, hublot, output_directory, args):
             hublot.set_phase(phase)
 
             # Iterate over data and labels (minibatches), by default, for one epoch.
-            for e in data[phase]:
+            for i, e in enumerate(data[phase]):
+                print(f'{i}/{len(data[phase])}')
                 optimizer.zero_grad()
                 with torch.set_grad_enabled(phase == 'train'):  # grads computed only in the training phase
                     outputs = model(e['images'])  # forward pass

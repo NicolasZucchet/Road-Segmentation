@@ -100,7 +100,7 @@ def train(model, indices, transformations, hublot, output_directory, args):
         print(f'Meta iteration {iteration}, task: {task_name}')
         # Open the needed images
         task = RoadSegmentationTask(os.path.join(ROOT_DIR, task_name), indices['train'], indices['val'],
-            device=config.device, train_transform=transformations['train'], val_transform=transformations['val'], verbose=False)
+            device=config.device, train_transform=transformations['train'], val_transform=transformations['val'])
         train_data = DataLoader(task.train_data,  batch_size=args.BATCH_SIZE)
         val_data = DataLoader(task.val_data,  batch_size=args.BATCH_SIZE)
 
@@ -122,10 +122,10 @@ def train(model, indices, transformations, hublot, output_directory, args):
         # Validation on all the validation tasks once in a while
         if iteration % (20/args.INNER_EPOCHS) == 0:
             hublot.set_phase('val')
-            for task_name in VAL_TASKS:
+            for task_name in config.VAL_TASKS:
                 # For all validation task...
                 task = RoadSegmentationTask(os.path.join(ROOT_DIR, task_name), indices['train'], indices['val'],
-                    device=device, train_transform=transformations['train'], val_transform=transformations['val'], verbose=False)
+                    device=config.device, train_transform=transformations['train'], val_transform=transformations['val'])
                 train_data =  DataLoader(task.train_data,  batch_size=args.BATCH_SIZE)
                 val_data =  DataLoader(task.val_data,  batch_size=args.BATCH_SIZE)
                 val_model = deepcopy(model)
