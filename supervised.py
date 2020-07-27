@@ -27,6 +27,8 @@ def load_model_data(args):
     # Creates the model and load weights when given
     model = Model('UNet', config.IN_CHANNELS, config.N_CLASSES, device=config.device)
     model.load_weights(path=args.SAVE)
+    # Freezes the first double convs of the model
+    model.freeze(args.FREEZE)
 
     # Loads transformations for training and validation samples from config
     transform_train, transform_test = config.TRANSFORM_TRAIN, config.TRANSFORM_TEST
@@ -83,7 +85,6 @@ def train(model, data, hublot, output_directory, args):
 
             # Iterate over data and labels (minibatches), by default, for one epoch.
             for i, e in enumerate(data[phase]):
-                print(f'{i}/{len(data[phase])}')
                 optimizer.zero_grad()
                 with torch.set_grad_enabled(phase == 'train'):  # grads computed only in the training phase
                     outputs = model(e['images'])  # forward pass
@@ -124,6 +125,8 @@ if __name__ == '__main__':
         help='Name of the experiment (default: EXPERIMENT)')
     parser.add_argument('--no-train', dest="NO_TRAIN", action='store_true', 
         help='To skip training phase')
+    parser.add_argument('--freeze', dest="FREEZE", type=int, default=0, 
+        help='Number of layers freezed (first layers)')
     parser.add_argument('--dataset', dest="DATASET", default="CIL", 
         help="Dataset to use, CIL or GoogleMaps")
     parser.add_argument('--n-train', dest="N_TRAIN", type=int, default=70, 

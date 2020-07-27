@@ -257,3 +257,15 @@ class Model(nn.Module):
         except:
             print("Error VGG-16 weights")
             raise
+
+    def freeze(self, n_layers):
+        """
+        Freezes the first n_layers layers
+        """
+        c = 0
+        for child in self.model.children():
+            if c < n_layers:
+                for param in child.parameters():
+                    param.requires_grad = False
+            c += 1
+        print(f'{min(c,n_layers)} / {c} DoubleConvs freezed')
