@@ -70,6 +70,7 @@ def train(model, data, hublot, output_directory, args):
     criterion = BCEDicePenalizeBorderLoss()
     criterion.to(config.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.LR)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=4, verbose=True)
     since = time.time()
     best_f1 = 0.0
 
@@ -100,6 +101,7 @@ def train(model, data, hublot, output_directory, args):
 
         # Saves the model if it's the best encountered so far
         epoch_val_f1 = hublot.get_metric('f1_score', 'val')  # get validation F1 score
+        scheduler.step(epoch_val_f1)
         print('F1', epoch_val_f1)
         if epoch_val_f1 > best_f1:
             best_f1 = epoch_val_f1
