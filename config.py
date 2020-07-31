@@ -25,9 +25,9 @@ device = torch.device(dev)
 
 
 # Parameters related to data augmentation
-MIN_SCALE = 0.25  # XXX
-MAX_SCALE = 1  # XXX
-ROTATION_MAX_ANGLE = 45  # XXX
+MIN_SCALE = 0.5  # XXX
+MAX_SCALE = 1.5  # XXX
+ROTATION_MAX_ANGLE = 90  # XXX
 # Transformation for training samples
 rgb_mean = (0.4914, 0.4822, 0.4465)
 rgb_std = (0.2023, 0.1994, 0.2010)
