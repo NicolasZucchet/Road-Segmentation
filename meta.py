@@ -1,7 +1,6 @@
 """
 Meta training on GoogleMaps data set using Reptile algorithm
 Inspired from https://github.com/openai/supervised-reptile
-
 In the entire script, parameters come from two different sources:
     - args: parameters that can be entered through command line
     - config: parameters that are defined in config.py. Some of them can be modified there.
@@ -93,34 +92,46 @@ def train(model, indices, transformations, hublot, output_directory, args):
     # Each meta iteration: training on one task randomly sampled
     for iteration in range(args.META_ITERATIONS):
         # Copy weights before meta update 
-        weights_before = deepcopy(model.state_dict())
+        weights = deepcopy(model.state_dict())
+
+        lr_outer = args.OUTER_LR * (1 - iteration / args.META_ITERATIONS) # linear meta optimization schedule
+        weights_updated = deepcopy(model.state_dict())
+        # The past weights contribute for 1-lr_outer of the new weights
+        weights_updated = { name : weights_updated[name]*(1-lr_outer) for name in weights_updated }
+
+        hublot.set_phase('train')
         
         # Sample one of the training task
-        task_name = random.sample(config.TRAIN_TASKS, 1)[0]
-        print(f'Meta iteration {iteration}, task: {task_name}')
-        # Open the needed images
-        task = RoadSegmentationTask(os.path.join(ROOT_DIR, task_name), indices['train'], indices['val'],
-            device=config.device, train_transform=transformations['train'], val_transform=transformations['val'])
-        train_data = DataLoader(task.train_data,  batch_size=args.BATCH_SIZE)
-        val_data = DataLoader(task.val_data,  batch_size=args.BATCH_SIZE)
+        task_names = random.sample(config.TRAIN_TASKS, args.TASK_BATCH_SIZE)
+        for task_name in task_names:
+            print(f'Meta iteration {iteration}, task: {task_name}')
+            model.load_state_dict(weights)
 
-        # Perform inner_epochs gradient steps on training data
-        optimizer_step(model, criterion, optimizer, train_data, args)
+            # Open the needed images
+            task = RoadSegmentationTask(os.path.join(ROOT_DIR, task_name), indices['train'], indices['val'],
+                device=config.device, train_transform=transformations['train'], val_transform=transformations['val'])
+            train_data = DataLoader(task.train_data,  batch_size=args.BATCH_SIZE)
+            val_data = DataLoader(task.val_data,  batch_size=args.BATCH_SIZE)
 
-        # Evaluate on validation data of the task
-        hublot.set_phase('train')
-        evaluate(model, criterion, val_data, hublot, args)
+            # Perform inner_epochs gradient steps on training data
+            optimizer_step(model, criterion, optimizer, train_data, args)
 
-        # Interpolate between current weights and trained weights from this task
-        weights_after = model.state_dict()
-        lr_outer = args.OUTER_LR * (1 - iteration / args.META_ITERATIONS) # linear meta optimization schedule
-        model.load_state_dict({name : 
-            weights_before[name] + (weights_after[name] - weights_before[name]) * lr_outer 
-            for name in weights_before})
-        del weights_before  # to avoid keeping the weights (potentially huge) in memory
+            # Evaluate on validation data of the task
+            evaluate(model, criterion, val_data, hublot, args)
+
+            # Interpolate between current weights and trained weights from this task
+            weights_after = model.state_dict()
+            # This task contributes for lr_outer/TASK_BATCH_SIZE of the weight update of this iteration
+            weights_updated = { name : weights_updated[name] + lr_outer * weights_after[name]/args.TASK_BATCH_SIZE 
+                for name in weights_updated }
+        
+        # Update model weights
+        model.load_state_dict(weights_updated)
+        del weights  # to avoid keeping the weights (potentially huge) in memory
+        del weights_updated
             
         # Validation on all the validation tasks once in a while
-        if iteration % (20/args.INNER_EPOCHS) == 0:
+        if iteration % int(10/args.TASK_BATCH_SIZE) == 0:
             hublot.set_phase('val')
             for task_name in config.VAL_TASKS:
                 # For all validation task...
@@ -134,11 +145,9 @@ def train(model, indices, transformations, hublot, output_directory, args):
                 optimizer_step(val_model, criterion, val_optimizer, train_data, args)
                 # ... and evaluate on testing data
                 evaluate(val_model, criterion, val_data, hublot, args)
-            mean_f1 = hublot.get_metric('f1_score', 'val')
-            # saves model if better f1 score on validation data
-            if mean_f1 > best_mean_f1:
-                best_mean_f1 = mean_f1
-                torch.save(model.state_dict(), output_directory+'/model.pt')
+        
+        # saves model
+        torch.save(model.state_dict(), output_directory+'/model.pt')
 
         hublot.save_epoch()
 
@@ -147,6 +156,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch-size', dest='BATCH_SIZE', default=10, type=int, 
         help='Batch size (default: 10)')
+    parser.add_argument('--task-batch-size', dest='TASK_BATCH_SIZE', default=1, type=int, 
+        help='Number of tasks in one meta iteration (default: 1)')
     parser.add_argument('--save', dest='SAVE', default=None, type=str, 
         help='Path to model.pt (default: None, no trained model used)')
     parser.add_argument('--inner-epochs', dest='INNER_EPOCHS', type=int, default=1, 
