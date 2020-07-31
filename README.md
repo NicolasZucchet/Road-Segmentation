@@ -21,7 +21,7 @@ This repo contains tools for classical supervised learning and meta Learning for
 ### `data`
 
 It contains two different datasets:
-- GoogleMaps: a homemade dataset that contains 100 labelled images for 35 different regions of the world;
+- DiverCity: this dataset should be downloaded from the zip file and extracted there;
 - CIL: the dataset given for the CIL project.
 
 ### `src`
@@ -35,11 +35,11 @@ This folder contains all the core elements:
 
 ### `supervised.py`
 
-Script that trains the network in the classical supervised fashion. It can be used on CIL and GoogleMaps datasets. Note that it should be used through command line.
+Script that trains the network in the classical supervised fashion. It can be used on CIL and DiverCity datasets. Note that it should be used through command line.
 
 ### `meta.py`
 
-Script that trains the network in a meta learning fashion. It uses the REPTILE algorithm and can only deal with GoogleMaps data set. It should also be used through command line.
+Script that trains the network in a meta learning fashion. It uses the REPTILE algorithm and can only deal with DiverCity data set. It should also be used through command line.
 
 ### `config.py`
 
@@ -53,9 +53,10 @@ This folder is created when the first experiment is launched. It contains all th
 ## A training example
 
 We train our network in the following way:
-1. on GoogleMaps data, in the classical way: `python supervised.py --dataset GoogleMaps --name first_step --epochs 100 --n-train 50`;
-2. on GoogleMaps data, in the meta learning way: `python meta.py --name second_step --epochs 100 --save experiment_results/PATH_TO_MODEL_OF_STEP_1/model.pt`;
-3. on CIL data, in the classical way: `python supervised.py --dataset CIL --name third_step --epochs 50  --save experiment_results/PATH_TO_MODEL_OF_STEP_2/model.pt`.
+1. on DiverCity data, in the classical way: `python supervised.py --dataset Divercity --name Step1 --epochs 25`. We then move the `model.pt`file (inside `experiment_results/Step1_######_######/model.pt`) to `./model_1.pt`;
+2. on DiverCity data, in the meta learning way: 
+`python meta.py --dataset Divercity --batch-size 10 --meta-iterations 70 --task-batch-size 3 --outer-lr 0.2 --inner-epochs 5 --name Step2 --save model_1.pt`. We move the generated `model.pt` to `./model_2.pt`;
+3. on CIL data, in the classical way: `python supervised.py --dataset CIL --name Step3 --epochs 50  --save model_2.pt`. We move the generated model weights to `./model_3.pt`.
 
 The model is then ready to be applied to the testing set: **TODO**
 

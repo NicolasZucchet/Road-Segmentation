@@ -1,5 +1,5 @@
 """
-Meta training on GoogleMaps data set using Reptile algorithm
+Meta training on DiverCity data set using Reptile algorithm
 Inspired from https://github.com/openai/supervised-reptile
 In the entire script, parameters come from two different sources:
     - args: parameters that can be entered through command line
@@ -27,7 +27,7 @@ import torch
 from torch.utils.data import DataLoader
 
 
-ROOT_DIR = './data/GoogleMaps'
+ROOT_DIR = './data/DiverCity'
 
 
 def load_model_transforms_indices(args):

@@ -51,7 +51,7 @@ TRANSFORM_TEST = [
 RANDOM_SEED = 42
 
 
-# Parameters related to the GoogleMaps dataset
+# Parameters related to the DiverCity dataset
 # Name of the tasks that should be used as training and validation tasks
 TRAIN_TASKS = [
     'New York', 'Los Angeles', 'Rio de Janeiro', 'Teheran',

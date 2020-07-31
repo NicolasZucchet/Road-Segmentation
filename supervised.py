@@ -34,8 +34,8 @@ def load_model_data(args):
     transform_train, transform_test = config.TRANSFORM_TRAIN, config.TRANSFORM_TEST
 
     # Randomly choose which samples will be used for training and which will be for validation
-    if args.DATASET == "GoogleMaps":
-        args.N_VAL = 0  # set it to 0 as not needed for GoogleMaps dataset
+    if args.DATASET == "DiverCity":
+        args.N_VAL = 0  # set it to 0 as not needed for DiverCity dataset
     np.random.seed(config.RANDOM_SEED)
     random_permutation = np.random.permutation(config.N_SAMPLES_PER_TASK)
     assert args.N_TRAIN + args.N_VAL <= config.N_SAMPLES_PER_TASK
@@ -45,15 +45,15 @@ def load_model_data(args):
             './data/CIL/training', indices=indices_train, train=True, transform=transform_train, device=config.device)
         dataset_valid = RoadSegmentationDataset(
             './data/CIL/training', indices=indices_val, train=True, transform=transform_test, device=config.device)
-    elif args.DATASET == "GoogleMaps":
-        # !!! For GoogleMaps dataset, n_val is not used
+    elif args.DATASET == "DiverCity":
+        # !!! For DiverCity dataset, n_val is not used
         # validation samples are not taken from the same tasks than training samples
-        dataset_train = RoadSegmentationDataset('./data/GoogleMaps', train=True, indices=indices_train, subtasks=config.TRAIN_TASKS, 
+        dataset_train = RoadSegmentationDataset('./data/DiverCity', train=True, indices=indices_train, subtasks=config.TRAIN_TASKS, 
             transform=transform_train, device=config.device)
-        dataset_valid = RoadSegmentationDataset('./data/GoogleMaps', train=True, indices=indices_train, subtasks=config.VAL_TASKS, 
+        dataset_valid = RoadSegmentationDataset('./data/DiverCity', train=True, indices=indices_train, subtasks=config.VAL_TASKS, 
             transform=transform_test, device=config.device)
     else:
-        raise ValueError("Dataset should be CIL or GoogleMaps")
+        raise ValueError("Dataset should be CIL or DiverCity")
 
     datasets = {
         "train": dataset_train,
@@ -130,11 +130,11 @@ if __name__ == '__main__':
     parser.add_argument('--freeze', dest="FREEZE", type=int, default=0, 
         help='Number of layers freezed (first layers)')
     parser.add_argument('--dataset', dest="DATASET", default="CIL", 
-        help="Dataset to use, CIL or GoogleMaps")
+        help="Dataset to use, CIL or DiverCity")
     parser.add_argument('--n-train', dest="N_TRAIN", type=int, default=70, 
         help='Number of training samples')
     parser.add_argument('--n-val', dest="N_VAL", type=int, default=30, 
-        help='Number of validation samples (will be set to 0 when using GoogleMaps dataset)')
+        help='Number of validation samples (will be set to 0 when using DiverCity dataset)')
 
     args = parser.parse_args()
 

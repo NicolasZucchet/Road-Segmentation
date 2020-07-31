@@ -17,6 +17,6 @@ ENV/
 # Leonhard
 lsf.*
 
-# Google maps dataset
-./data/GoogleMaps
-*.GoogleMaps.zip
+# DiverCity dataset
+./data/DiverCity/
+*.DiverCity.zip
