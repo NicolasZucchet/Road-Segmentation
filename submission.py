@@ -29,7 +29,7 @@ model = Model('UNet', IN_CHANNELS, N_CLASSES, device=device)
 model.load_weights(path=SAVE)
 
 # post processing model
-postprocessing_weights = "postprocessing.pt"
+postprocessing_weights = "postprocessing.tar"
 postprocessing_model = UNet(IN_CHANNELS+1, N_CLASSES).to(device)
 postprocessing_model.load_weights(path=postprocessing_weights)
 
